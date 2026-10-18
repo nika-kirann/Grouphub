@@ -1,0 +1,107 @@
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  let CSRF = '', META = null, tab = 'pending', groups = [];
+
+  // Build DOM with textContent only, so user-submitted data can never become HTML.
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => { if (v == null || v === false) return; if (k === 'class') el.className = v; else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v); });
+    kids.flat().forEach((k) => { if (k != null && k !== false) el.append(k instanceof Node ? k : String(k)); });
+    return el;
+  }
+  async function api(url, opts) {
+    opts = opts || {};
+    const res = await fetch(url, Object.assign({}, opts, { headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF } }));
+    if (res.status === 401) { location.replace('/admin'); throw new Error('Session expired'); }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Request failed');
+    return body;
+  }
+  let tt; function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => { t.hidden = true; }, 2600); }
+
+  async function loadStats() {
+    const s = await api('/api/admin/stats');
+    const cards = [['Pending review', s.pending, s.pending ? 'hl' : ''], ['Approved', s.approved], ['Featured', s.featured], ['Reported groups', s.reported, s.reported ? 'alert' : ''], ['Open reports', s.openReports, s.openReports ? 'alert' : ''], ['New this week', s.submittedThisWeek]];
+    $('stats').replaceChildren(...cards.map(([l, v, c]) => h('div', { class: 'stat ' + (c || '') }, h('b', null, v), h('span', null, l))));
+    ['pending', 'approved', 'reported', 'rejected'].forEach((k) => { document.querySelector(`[data-count="${k}"]`).textContent = s[k]; });
+  }
+  async function loadList() {
+    const q = $('q').value.trim();
+    groups = (await api('/api/admin/groups?status=' + tab + (q ? '&q=' + encodeURIComponent(q) : ''))).groups;
+    render();
+  }
+  async function refresh() { await Promise.all([loadStats(), loadList()]); }
+
+  async function act(id, fn, msg) {
+    try { await fn(); toast(msg); await refresh(); } catch (e) { toast('⚠ ' + e.message); }
+  }
+  const patch = (id, body) => api('/api/admin/groups/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(body) });
+
+  function row(g) {
+    const actions = [];
+    const B = (label, cls, fn) => h('button', { class: 'btn sm ' + cls, type: 'button', onclick: fn }, label);
+    if (g.status !== 'approved') actions.push(B('✓ Approve', 'ok', () => act(g.id, () => patch(g.id, { status: 'approved' }), 'Approved')));
+    if (g.status !== 'rejected') actions.push(B('✕ Reject', 'warn', () => act(g.id, () => patch(g.id, { status: 'rejected' }), 'Rejected')));
+    if (g.status === 'approved') actions.push(B(g.featured ? '☆ Unfeature' : '★ Feature', 'gold', () => act(g.id, () => patch(g.id, { featured: !g.featured }), g.featured ? 'Unfeatured' : 'Featured')));
+    actions.push(B('✎ Edit', '', () => openEdit(g)));
+    if (g.reportCount) actions.push(B('Clear reports', '', () => act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id) + '/clear-reports', { method: 'POST' }), 'Reports cleared')));
+    actions.push(B('🗑 Delete', 'warn', () => { if (confirm('Permanently delete "' + g.name + '"?')) act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id), { method: 'DELETE' }), 'Deleted'); }));
+    const el = h('article', { class: 'row' + (g.featured ? ' featured' : ''), 'data-id': g.id },
+      h('div', null,
+        h('h3', null, g.name, g.featured ? h('span', { class: 'pill feat' }, '★ Featured') : null, g.sample ? h('span', { class: 'pill' }, 'Sample') : null),
+        h('div', { class: 'meta' },
+          h('span', { class: 'pill ' + g.plat }, g.plat === 'wa' ? 'WhatsApp' : 'Telegram'),
+          h('span', { class: 'pill st-' + g.status }, g.status),
+          h('span', { class: 'pill' }, g.cat), h('span', { class: 'pill' }, g.country), h('span', { class: 'pill' }, g.lang),
+          g.members ? h('span', { class: 'pill' }, g.members.toLocaleString() + ' members') : null,
+          g.reportCount ? h('span', { class: 'pill rep' }, '⚑ ' + g.reportCount + ' report' + (g.reportCount > 1 ? 's' : '')) : null,
+          h('span', { class: 'pill' }, 'Added ' + new Date(g.createdAt).toLocaleString())),
+        h('p', { class: 'desc' }, g.desc),
+        h('a', { class: 'link', href: g.link, target: '_blank', rel: 'noopener noreferrer nofollow' }, g.link)),
+      h('div', { class: 'actions' }, actions));
+    if (g.reportCount) {
+      const box = h('div', { class: 'reports' }, h('span', { class: 'muted' }, 'Loading reports…'));
+      el.append(box);
+      api('/api/admin/groups/' + encodeURIComponent(g.id) + '/reports').then((r) => {
+        box.replaceChildren(...r.reports.map((x) => h('div', null, h('b', null, x.reason), x.details ? ' · ' + x.details : '', h('span', { class: 'muted small' }, ' · ' + new Date(x.createdAt).toLocaleString()))));
+      }).catch(() => {});
+    }
+    return el;
+  }
+  function render() {
+    document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === tab)));
+    $('list').replaceChildren(...(groups.length ? groups.map(row) : [h('div', { class: 'empty' }, 'Nothing in “' + tab + '” right now.')]));
+  }
+
+  // ----- edit dialog -----
+  let editing = null;
+  function fillSelect(sel, items) { sel.replaceChildren(...items.map((v) => h('option', { value: v }, v))); }
+  function openEdit(g) {
+    editing = g; const f = $('editForm');
+    ['plat', 'link', 'name', 'cat', 'country', 'lang', 'desc'].forEach((k) => { f.elements[k].value = g[k] || ''; });
+    f.elements.members.value = g.members == null ? '' : g.members;
+    $('editError').hidden = true; $('editDialog').showModal();
+  }
+  $('editCancel').addEventListener('click', () => $('editDialog').close());
+  $('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target;
+    const body = {}; ['plat', 'link', 'name', 'cat', 'country', 'lang', 'desc'].forEach((k) => { body[k] = f.elements[k].value; });
+    body.members = f.elements.members.value === '' ? null : f.elements.members.value;
+    try { await patch(editing.id, body); $('editDialog').close(); toast('Saved'); refresh(); }
+    catch (ex) { $('editError').textContent = ex.message; $('editError').hidden = false; }
+  });
+
+  // ----- init -----
+  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { tab = t.dataset.tab; loadList(); }));
+  let qt; $('q').addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(loadList, 200); });
+  $('logoutBtn').addEventListener('click', async () => { await api('/admin/logout', { method: 'POST' }).catch(() => {}); location.replace('/admin'); });
+  (async function init() {
+    try {
+      CSRF = (await api('/api/admin/me')).csrf;
+      META = await fetch('/api/meta').then((r) => r.json());
+      const f = $('editForm'); fillSelect(f.elements.cat, META.categories); fillSelect(f.elements.country, META.countries); fillSelect(f.elements.lang, META.languages);
+      await refresh();
+    } catch (e) { toast('⚠ ' + e.message); }
+  })();
+})();

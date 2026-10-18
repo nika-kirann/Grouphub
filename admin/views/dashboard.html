@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>GroupHub Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/admin/assets/admin.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="/favicon.svg" alt="" width="30" height="30"> GroupHub <span>Admin</span></div>
+    <div class="top-actions"><a class="btn ghost" href="/" target="_blank" rel="noopener">View site ↗</a><button class="btn ghost" id="logoutBtn" type="button">Log out</button></div>
+  </header>
+  <main class="wrap">
+    <section class="stats" id="stats" aria-label="Stats"></section>
+    <nav class="tabs" role="tablist" aria-label="Moderation queues">
+      <button role="tab" class="tab" data-tab="pending">Pending <b data-count="pending">0</b></button>
+      <button role="tab" class="tab" data-tab="approved">Approved <b data-count="approved">0</b></button>
+      <button role="tab" class="tab" data-tab="reported">Reported <b data-count="reported">0</b></button>
+      <button role="tab" class="tab" data-tab="rejected">Rejected <b data-count="rejected">0</b></button>
+      <input id="q" type="search" placeholder="Search name, description or link…" aria-label="Search">
+    </nav>
+    <section id="list" class="list" aria-live="polite"></section>
+  </main>
+
+  <dialog id="editDialog">
+    <form id="editForm" method="dialog" novalidate>
+      <h2>Edit group</h2>
+      <div class="grid2">
+        <label>Platform<select name="plat"><option value="wa">WhatsApp</option><option value="tg">Telegram</option></select></label>
+        <label>Invite link<input name="link" required></label>
+        <label>Name<input name="name" maxlength="60" required></label>
+        <label>Members (optional)<input name="members" type="number" min="0" max="1000000"></label>
+        <label>Category<select name="cat"></select></label>
+        <label>Country<select name="country"></select></label>
+        <label>Language<select name="lang"></select></label>
+      </div>
+      <label>Description<textarea name="desc" rows="3" maxlength="300" required></textarea></label>
+      <p class="error" id="editError" role="alert" hidden></p>
+      <div class="dialog-actions"><button class="btn ghost" value="cancel" type="button" id="editCancel">Cancel</button><button class="btn primary" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="/admin/assets/admin.js" defer></script>
+</body>
+</html>
