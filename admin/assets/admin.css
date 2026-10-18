@@ -38,7 +38,7 @@ label{display:flex;flex-direction:column;gap:6px;font-size:.8rem;font-weight:700
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
 .pill{font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.06);color:#c9cbe0}
 .pill.wa{color:var(--green);background:rgba(37,211,102,.12)}.pill.tg{color:var(--blue);background:rgba(42,171,238,.12)}
-.pill.feat{color:var(--gold);background:rgba(255,211,110,.12)}.pill.rep{color:#ffb0b0;background:rgba(255,107,107,.14)}
+.pill.adult{color:#ff9a9a;background:rgba(255,80,80,.16)}.pill.feat{color:var(--gold);background:rgba(255,211,110,.12)}.pill.rep{color:#ffb0b0;background:rgba(255,107,107,.14)}
 .pill.st-pending{color:#ffd36e}.pill.st-rejected{color:#ffb0b0}.pill.st-approved{color:#7ff0ad}
 .desc{color:#c0c4de;margin:4px 0;font-size:.92rem}
 .link{font:12px ui-monospace,Menlo,monospace;color:var(--muted);word-break:break-all}

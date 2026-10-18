@@ -7,6 +7,9 @@
     wa: '<svg width="24" height="24" viewBox="0 0 24 24" fill="#25d366" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.13-1.35A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2Z"/></svg>',
     tg: '<svg width="24" height="24" viewBox="0 0 24 24" fill="#2aabee" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm4.64 6.8-1.69 8.02c-.12.57-.46.71-.93.44l-2.56-1.89-1.23 1.19c-.14.13-.25.25-.51.25l.18-2.6 4.69-4.24c.2-.18-.04-.28-.32-.1L7.46 14.6l-2.52-.79c-.55-.17-.56-.55.12-.81l9.85-3.8c.46-.16.86.11.73.6Z"/></svg>'
   };
+  const ADULT = 'Adult', AGE_KEY = 'grouphub.ageConfirmed18';
+  const isAdultOk = () => { if (ageSessionOk) return true; try { return localStorage.getItem(AGE_KEY) === '1'; } catch (e) { return false; } };
+  let pendingAdultSource = null, ageSessionOk = false; // 'chip' | 'select' while the age gate is open
   let GROUPS = [], currentPlatform = 'wa', currentPage = 1, activeCat = '', selectedPlat = 'wa', reportId = null, lastFocus = null;
 
   // ---------- sakura (skipped when the user prefers reduced motion) ----------
@@ -44,9 +47,11 @@
   }
   async function load() {
     try {
-      GROUPS = (await api('/api/groups')).groups;
-      const uniq = (k) => new Set(GROUPS.map((g) => g[k])).size;
-      $('statGroups').textContent = GROUPS.length; $('statCountries').textContent = uniq('country'); $('statCats').textContent = uniq('cat');
+      // Adult groups are only fetched once the visitor has passed the 18+ gate.
+      GROUPS = (await api('/api/groups' + (isAdultOk() ? '?includeAdult=1' : ''))).groups;
+      const general = GROUPS.filter((g) => g.cat !== ADULT);
+      const uniq = (k) => new Set(general.map((g) => g[k])).size;
+      $('statGroups').textContent = general.length; $('statCountries').textContent = uniq('country'); $('statCats').textContent = uniq('cat');
       renderGrid(true);
     } catch (e) {
       $('groupGrid').innerHTML = '<div class="empty"><p>Couldn\'t load groups. Please refresh.</p></div>';
@@ -56,8 +61,10 @@
   function getFiltered() {
     const q = $('searchInput').value.trim().toLowerCase();
     const cat = activeCat || $('catFilter').value, country = $('countryFilter').value, lang = $('langFilter').value;
+    const showAdult = cat === ADULT && isAdultOk();
     return GROUPS.filter((g) => g.plat === currentPlatform &&
-      (!q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q)) &&
+      (g.cat === ADULT ? showAdult : true) &&
+      (!q || g.name.toLowerCase().includes(q) || (g.desc || '').toLowerCase().includes(q)) &&
       (!cat || g.cat === cat) && (!country || g.country === country) && (!lang || g.lang === lang));
   }
 
@@ -75,11 +82,12 @@
           <span class="badge badge-${isWa ? 'wa' : 'tg'}">${isWa ? 'WhatsApp' : 'Telegram'}</span>
           <span class="badge badge-cat">${esc(g.cat)}</span>
           <span class="badge badge-country">🌍 ${esc(g.country)}</span>
+          ${g.cat === ADULT ? '<span class="badge badge-adult" title="Adults only">18+</span>' : ''}
           ${g.sample ? '<span class="badge badge-sample" title="Example listing with a fake invite link">Sample</span>' : ''}
         </div>
       </div>
     </div>
-    <div class="card-desc">${esc(g.desc)}</div>
+    ${g.desc ? `<div class="card-desc">${esc(g.desc)}</div>` : ''}
     <div class="card-footer">
       <div class="card-members">${g.members ? Number(g.members).toLocaleString() + ' members' : esc(g.lang)}</div>
       <div class="card-actions">
@@ -102,7 +110,8 @@
 
   // ---------- modals ----------
   function openOverlay(id, focusEl) { lastFocus = document.activeElement; $(id).classList.add('open'); document.body.style.overflow = 'hidden'; setTimeout(() => (focusEl || $(id).querySelector('input,select,textarea,button')).focus(), 30); }
-  function closeOverlays() { document.querySelectorAll('.overlay.open').forEach((o) => o.classList.remove('open')); document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
+  function closeOverlays() {
+    if ($('ageOverlay').classList.contains('open') && !isAdultOk() && !ageSessionOk) { $('ageOverlay').classList.remove('open'); pendingAdultSource = null; setCategory('', true); } document.querySelectorAll('.overlay.open').forEach((o) => o.classList.remove('open')); document.body.style.overflow = ''; if (lastFocus) lastFocus.focus(); }
   let toastTimer;
   function toast(msg, isError) { const t = $('toast'); t.textContent = msg; t.classList.toggle('error', !!isError); t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3500); }
 
@@ -136,13 +145,12 @@
     if (!checkLink(data.plat, data.link)) problem = 'Please enter a valid ' + (data.plat === 'wa' ? 'WhatsApp' : 'Telegram') + ' invite link.';
     else if (String(data.name).trim().length < 3) problem = 'Group name must be at least 3 characters.';
     else if (!data.cat || !data.country || !data.lang) problem = 'Please choose a category, country and language.';
-    else if (String(data.desc).trim().length < 20) problem = 'Description must be at least 20 characters.';
     else if (!fd.get('agree')) problem = 'Please confirm your group follows the rules.';
     if (problem) { err.textContent = problem; err.hidden = false; return; }
     err.hidden = true; $('submitBtn').disabled = true;
     try {
       await api('/api/groups', { method: 'POST', body: JSON.stringify(data) });
-      f.reset(); $('descCount').textContent = '0/300'; selectPlat('wa'); closeOverlays();
+      f.reset(); $('descCount').textContent = '0/300'; $('adultNote').hidden = true; selectPlat('wa'); closeOverlays();
       toast('✓ Submitted! A moderator will review your group before it appears.');
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
     finally { $('submitBtn').disabled = false; }
@@ -156,6 +164,14 @@
     catch (ex) { err.textContent = ex.message; err.hidden = false; }
   }
 
+  // fromChip: chip selections set activeCat; dropdown selections clear it.
+  function setCategory(cat, fromChip) {
+    activeCat = fromChip ? cat : '';
+    $('catFilter').value = cat;
+    document.querySelectorAll('.cat-chip').forEach((c) => c.classList.toggle('active', c.dataset.cat === cat));
+    renderGrid(true);
+  }
+
   // ---------- events ----------
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-action]');
@@ -164,7 +180,9 @@
     if (a === 'open-add') { e.preventDefault(); updateLinkHint(); openOverlay('overlay', $('groupLink')); }
     else if (a === 'close-modal') closeOverlays();
     else if (a === 'platform') { currentPlatform = el.dataset.plat; $('tab-wa').className = 'tab' + (currentPlatform === 'wa' ? ' active-wa' : ''); $('tab-tg').className = 'tab' + (currentPlatform === 'tg' ? ' active-tg' : ''); $('tab-wa').setAttribute('aria-pressed', currentPlatform === 'wa'); $('tab-tg').setAttribute('aria-pressed', currentPlatform === 'tg'); renderGrid(true); }
-    else if (a === 'chip') { document.querySelectorAll('.cat-chip').forEach((c) => c.classList.toggle('active', c === el)); activeCat = el.dataset.cat; $('catFilter').value = activeCat; renderGrid(true); }
+    else if (a === 'chip') { if (el.dataset.cat === ADULT && !isAdultOk()) { pendingAdultSource = 'chip'; openOverlay('ageOverlay'); return; } setCategory(el.dataset.cat, true); }
+    else if (a === 'age-yes') { const pendingSrc = pendingAdultSource; ageSessionOk = true; try { localStorage.setItem(AGE_KEY, '1'); } catch (e) { /* storage blocked: allow for this page view only */ } closeOverlays(); pendingAdultSource = null; load().then(() => setCategory(ADULT, pendingSrc !== 'select')); }
+    else if (a === 'age-no') { closeOverlays(); pendingAdultSource = null; setCategory('', true); }
     else if (a === 'load-more') { currentPage++; renderGrid(false); }
     else if (a === 'mascot') mascotClick();
     else if (a === 'select-plat') selectPlat(el.dataset.plat);
@@ -173,7 +191,12 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('.overlay.open')) closeOverlays(); });
   let t; $('searchInput').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => renderGrid(true), 120); });
   // Dropdown category replaces any chip selection (fixes chip/dropdown conflict).
-  $('catFilter').addEventListener('change', () => { activeCat = ''; const v = $('catFilter').value; document.querySelectorAll('.cat-chip').forEach((c) => c.classList.toggle('active', c.dataset.cat === v)); renderGrid(true); });
+  $('catFilter').addEventListener('change', () => {
+    const v = $('catFilter').value;
+    if (v === ADULT && !isAdultOk()) { pendingAdultSource = 'select'; openOverlay('ageOverlay'); return; }
+    setCategory(v, false);
+  });
+  $('groupCat').addEventListener('change', () => { $('adultNote').hidden = $('groupCat').value !== ADULT; });
   $('countryFilter').addEventListener('change', () => renderGrid(true));
   $('langFilter').addEventListener('change', () => renderGrid(true));
   $('groupLink').addEventListener('input', updateLinkHint);

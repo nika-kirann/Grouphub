@@ -13,6 +13,7 @@ GroupHub is a moderated directory of **WhatsApp and Telegram group invite links*
   - Login is rate-limited and passwords are hashed with scrypt.
   - Submissions and reports are rate-limited.
   - Only `public/` is web-accessible.
+- **Adult (18+) category:** hidden from the default listing and from "All categories". The API only returns these groups with `?includeAdult=1`, which the site requests after the visitor passes an 18+ age gate (remembered in `localStorage`). Cards show an 18+ badge, and the submit form explains the rules (no minors, no non-consensual or illegal content; every listing is reviewed).
 - **Storage:** a JSON file (`data/grouphub.json`). It's created on first run with 15 **sample** groups that use fake invite codes.
 
 ## Requirements
@@ -70,7 +71,7 @@ data/                Database (git-ignored)
 ## API
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/api/groups` | – | Approved groups, featured first |
+| GET | `/api/groups` | – | Approved groups, featured first (Adult only with `?includeAdult=1`) |
 | POST | `/api/groups` | – | Submit a group (status becomes `pending`; 10 per hour per IP) |
 | POST | `/api/groups/:id/report` | – | Report an approved group (20 per hour per IP) |
 | GET | `/api/meta` | – | Allowed categories, countries, languages, report reasons |

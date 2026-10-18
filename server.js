@@ -147,10 +147,12 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'grouphub
 app.use(express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'deny' }));
 
 // ----- public API -----
-app.get('/api/meta', (req, res) => res.json({ categories: V.CATEGORIES, countries: V.COUNTRIES, languages: V.LANGUAGES, reasons: V.REPORT_REASONS }));
+app.get('/api/meta', (req, res) => res.json({ adultCategory: V.ADULT_CATEGORY, categories: V.CATEGORIES, countries: V.COUNTRIES, languages: V.LANGUAGES, reasons: V.REPORT_REASONS }));
 
+// Adult groups are only returned when explicitly requested (?includeAdult=1), after the client-side 18+ gate.
 app.get('/api/groups', (req, res) => {
-  const list = store.groups((g) => g.status === 'approved')
+  const includeAdult = req.query.includeAdult === '1';
+  const list = store.groups((g) => g.status === 'approved' && (includeAdult || g.cat !== V.ADULT_CATEGORY))
     .sort((a, b) => (b.featured - a.featured) || b.createdAt.localeCompare(a.createdAt))
     .map(publicGroup);
   res.set('Cache-Control', 'no-cache').json({ groups: list });

@@ -53,11 +53,11 @@
         h('div', { class: 'meta' },
           h('span', { class: 'pill ' + g.plat }, g.plat === 'wa' ? 'WhatsApp' : 'Telegram'),
           h('span', { class: 'pill st-' + g.status }, g.status),
-          h('span', { class: 'pill' }, g.cat), h('span', { class: 'pill' }, g.country), h('span', { class: 'pill' }, g.lang),
+          g.cat === 'Adult' ? h('span', { class: 'pill adult' }, '🔞 Adult 18+') : h('span', { class: 'pill' }, g.cat), h('span', { class: 'pill' }, g.country), h('span', { class: 'pill' }, g.lang),
           g.members ? h('span', { class: 'pill' }, g.members.toLocaleString() + ' members') : null,
           g.reportCount ? h('span', { class: 'pill rep' }, '⚑ ' + g.reportCount + ' report' + (g.reportCount > 1 ? 's' : '')) : null,
           h('span', { class: 'pill' }, 'Added ' + new Date(g.createdAt).toLocaleString())),
-        h('p', { class: 'desc' }, g.desc),
+        g.desc ? h('p', { class: 'desc' }, g.desc) : h('p', { class: 'desc muted' }, '(no description)'),
         h('a', { class: 'link', href: g.link, target: '_blank', rel: 'noopener noreferrer nofollow' }, g.link)),
       h('div', { class: 'actions' }, actions));
     if (g.reportCount) {

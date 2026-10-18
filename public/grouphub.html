@@ -227,6 +227,13 @@
     .form-error { background: rgba(255,90,90,0.12); border: 1px solid rgba(255,90,90,0.35); color: #ffb4b4; font-size: .85rem; padding: 10px 12px; border-radius: 10px; margin: 6px 0 4px; }
     .form-check { display: flex; gap: 10px; align-items: flex-start; font-size: .85rem; color: var(--muted); margin: 4px 0 8px; cursor: pointer; }
     .form-check input { margin-top: 3px; accent-color: #b06aff; }
+    .badge-adult { background: rgba(255,80,80,0.16); color: #ff9a9a; border: 1px solid rgba(255,80,80,0.35); }
+    .cat-chip-adult { border-color: rgba(255,80,80,0.35); }
+    .adult-note { background: rgba(255,80,80,0.08); border: 1px solid rgba(255,80,80,0.3); color: #ffc9c9; font-size: .82rem; line-height: 1.55; padding: 10px 12px; border-radius: 10px; margin: 0 0 12px; }
+    .age-modal { max-width: 440px; text-align: center; }
+    .age-modal p { margin: 10px 0 20px; }
+    .age-actions { display: flex; gap: 10px; }
+    .age-actions > * { flex: 1; margin: 0; }
     .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     #descCount { float: right; text-transform: none; letter-spacing: 0; font-weight: 600; }
     .btn-submit[disabled] { opacity: .6; cursor: wait; }
@@ -300,6 +307,7 @@
   <button type="button" class="cat-chip" data-action="chip" data-cat="Health / Fitness">💪 Fitness</button>
   <button type="button" class="cat-chip" data-action="chip" data-cat="Travel">✈️ Travel</button>
   <button type="button" class="cat-chip" data-action="chip" data-cat="Social / Friendship">🤝 Social</button>
+  <button type="button" class="cat-chip cat-chip-adult" data-action="chip" data-cat="Adult">🔞 Adult (18+)</button>
 </div>
 
 <!-- FILTERS -->
@@ -317,7 +325,7 @@
       <option>Gaming / Apps</option><option>Health / Fitness</option><option>Jobs / Career</option>
       <option>Music / Audio</option><option>News / Politics</option><option>Pets / Animals</option>
       <option>Science / Tech</option><option>Shopping</option><option>Social / Friendship</option>
-      <option>Sports</option><option>Travel</option>
+      <option>Sports</option><option>Travel</option><option value="Adult">Adult (18+)</option>
     </select>
     <select class="filter-select" id="countryFilter" aria-label="Country">
       <option value="">All Countries</option>
@@ -328,7 +336,7 @@
     <select class="filter-select" id="langFilter" aria-label="Language">
       <option value="">All Languages</option>
       <option>English</option><option>Hindi</option><option>Japanese</option><option>Arabic</option>
-      <option>Portuguese</option><option>Spanish</option><option>Urdu</option><option>Bengali</option><option>Other</option>
+      <option>Portuguese</option><option>Spanish</option><option>Urdu</option><option>Bengali</option><option>Malayalam</option><option>Other</option>
     </select>
   </div>
 </div>
@@ -419,7 +427,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label" for="groupCat">Category *</label>
-          <select class="form-select" id="groupCat" name="cat" required><option value="">Select category</option><option>Anime / Manga</option><option>Art / Design</option><option>Business / Marketing</option><option>Comedy / Funny</option><option>Education</option><option>Entertainment</option><option>Family</option><option>Fashion / Style</option><option>Gaming / Apps</option><option>Health / Fitness</option><option>Jobs / Career</option><option>Music / Audio</option><option>News / Politics</option><option>Pets / Animals</option><option>Science / Tech</option><option>Shopping</option><option>Social / Friendship</option><option>Sports</option><option>Travel</option></select>
+          <select class="form-select" id="groupCat" name="cat" required><option value="">Select category</option><option>Anime / Manga</option><option>Art / Design</option><option>Business / Marketing</option><option>Comedy / Funny</option><option>Education</option><option>Entertainment</option><option>Family</option><option>Fashion / Style</option><option>Gaming / Apps</option><option>Health / Fitness</option><option>Jobs / Career</option><option>Music / Audio</option><option>News / Politics</option><option>Pets / Animals</option><option>Science / Tech</option><option>Shopping</option><option>Social / Friendship</option><option>Sports</option><option>Travel</option><option value="Adult">Adult (18+)</option></select>
         </div>
         <div class="form-group">
           <label class="form-label" for="groupCountry">Country *</label>
@@ -428,11 +436,14 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="groupLang">Language *</label>
-        <select class="form-select" id="groupLang" name="lang" required><option value="">Select language</option><option>English</option><option>Hindi</option><option>Japanese</option><option>Arabic</option><option>Portuguese</option><option>Spanish</option><option>Urdu</option><option>Bengali</option><option>Other</option></select>
+        <select class="form-select" id="groupLang" name="lang" required><option value="">Select language</option><option>English</option><option>Hindi</option><option>Japanese</option><option>Arabic</option><option>Portuguese</option><option>Spanish</option><option>Urdu</option><option>Bengali</option><option>Malayalam</option><option>Other</option></select>
       </div>
       <div class="form-group">
-        <label class="form-label" for="groupDesc">Description * <span id="descCount">0/300</span></label>
-        <textarea class="form-textarea" id="groupDesc" name="desc" maxlength="300" placeholder="Describe what your group is about (20–300 characters)" required></textarea>
+        <label class="form-label" for="groupDesc">Description <span id="descCount">0/300</span></label>
+        <textarea class="form-textarea" id="groupDesc" name="desc" maxlength="300" placeholder="What is your group about? (optional, up to 300 characters)"></textarea>
+      </div>
+      <div class="adult-note" id="adultNote" hidden>
+        <strong>🔞 Adult (18+) groups:</strong> members must be 18 or older. Groups must not involve minors, non-consensual content or any illegal material. Every adult listing is reviewed by an admin, and listings that break these rules are removed and may be reported to the authorities.
       </div>
       <div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
       <label class="form-check"><input type="checkbox" name="agree" required/> My group has no adult content, scams, spam or hate.</label>
@@ -456,6 +467,18 @@
       <p class="form-error" id="reportError" role="alert" hidden></p>
       <button class="btn-submit" type="submit">Send report</button>
     </form>
+  </div>
+</div>
+
+<!-- AGE GATE -->
+<div class="overlay" id="ageOverlay" data-overlay>
+  <div class="modal age-modal" role="dialog" aria-modal="true" aria-labelledby="ageTitle">
+    <h2 id="ageTitle">🔞 Are you 18 or older?</h2>
+    <p>The Adult category lists groups for adults only. By continuing you confirm you are at least 18 years old (or the age of majority where you live) and want to see adult listings.</p>
+    <div class="age-actions">
+      <button type="button" class="btn-load" data-action="age-no">No, take me back</button>
+      <button type="button" class="btn-submit" data-action="age-yes">Yes, I'm 18+</button>
+    </div>
   </div>
 </div>
 
