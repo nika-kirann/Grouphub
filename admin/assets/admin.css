@@ -70,4 +70,4 @@ dialog h2{margin:0 0 16px}dialog form{display:grid;gap:12px}
 .pill.auto{color:#ffd36e;background:rgba(255,211,110,.14)}.pill.held{color:#ffb0b0;background:rgba(255,107,107,.12);max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:900px){.topbar{flex-wrap:wrap;gap:8px}.top-actions{flex-wrap:wrap}}
 .tabs .auto-filter{margin-left:auto}.tabs .auto-filter input{margin:0;max-width:none;width:auto}
-.brand-emblem{border-radius:9px;display:block}
+.brand-emblem{display:block}

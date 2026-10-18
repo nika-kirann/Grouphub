@@ -20,15 +20,15 @@
   <meta property="og:url" content="https://grouphub.in/">
   <meta property="og:title" content="GroupHub: Find &amp; Promote WhatsApp and Telegram Groups">
   <meta property="og:description" content="Promote your WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
-  <meta property="og:image" content="https://grouphub.in/logo.png">
+  <meta property="og:image" content="https://grouphub.in/og-image.png">
   <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="512">
-  <meta property="og:image:height" content="512">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="GroupHub logo: promote WhatsApp and Telegram for free">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="GroupHub: Find &amp; Promote WhatsApp and Telegram Groups">
   <meta name="twitter:description" content="Promote your WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
-  <meta name="twitter:image" content="https://grouphub.in/logo.png">
+  <meta name="twitter:image" content="https://grouphub.in/og-image.png">
   <meta name="twitter:image:alt" content="GroupHub logo">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,10 +100,8 @@
       width: 800px; height: 500px; border-radius: 50%; pointer-events: none;
       background: radial-gradient(ellipse, rgba(176,106,255,0.16) 0%, rgba(255,110,180,0.07) 50%, transparent 70%);
     }
-    .nav-emblem { display: block; height: 40px; width: auto; border-radius: 10px; }
-    .hero-logo { display: block; width: 200px; height: 200px; margin: -36px auto 8px; position: relative;
-      -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 62%, transparent 74%); mask-image: radial-gradient(circle at 50% 50%, #000 62%, transparent 74%);
-      animation: fadeUp 0.6s ease both; }
+    .nav-emblem { display: block; height: 40px; width: auto; }
+    .hero-logo { display: block; width: 200px; height: auto; aspect-ratio: 512 / 481; margin: -40px auto 14px; position: relative; animation: fadeUp 0.6s ease both; }
     .hero-badge {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(176,106,255,0.12); border: 1px solid rgba(176,106,255,0.3);
@@ -234,7 +232,7 @@
       nav { padding: 0 16px; }
       .nav-links a:not(.btn-add) { display: none; }
       .hero { padding: 56px 16px 36px; }
-      .hero-logo { width: 150px; height: 150px; margin-top: -30px; }
+      .hero-logo { width: 150px; margin-top: -30px; }
       .nav-emblem { height: 34px; }
       .hero-stats { gap: 24px; }
       .filter-row { flex-direction: column; }
@@ -286,7 +284,7 @@
 <!-- NAV -->
 <nav>
   <a href="#" class="nav-logo" aria-label="GroupHub home">
-    <picture><source srcset="/logo-header.webp" type="image/webp"><img class="nav-emblem" src="/logo-header.png" width="58" height="40" alt=""></picture>
+    <picture><source srcset="/logo-header.webp" type="image/webp"><img class="nav-emblem" src="/logo-header.png" width="60" height="40" alt=""></picture>
     GroupHub
   </a>
   <div class="nav-links">
@@ -298,7 +296,7 @@
 <!-- HERO -->
 <section class="hero">
   <div class="hero-glow"></div>
-  <picture><source srcset="/logo.webp" type="image/webp"><img class="hero-logo" src="/logo.png" width="200" height="200" alt="GroupHub: promote WhatsApp &amp; Telegram for free" fetchpriority="high" decoding="async"></picture>
+  <picture><source srcset="/logo.webp" type="image/webp"><img class="hero-logo" src="/logo.png" width="200" height="188" alt="GroupHub: promote WhatsApp &amp; Telegram for free" fetchpriority="high" decoding="async"></picture>
   <div class="hero-badge">✦ WhatsApp &amp; Telegram Groups</div>
   <h1>Find Your <span>Perfect Group</span><br>in Seconds</h1>
   <p>Browse moderated public groups on WhatsApp and Telegram, filtered by topic, country and language. Every listing is reviewed before it appears.</p>
