@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GroupHub — Find & Share Group Links</title>
+  <title>GROUPHUB – Promote WhatsApp &amp; Telegram Groups for Free</title>
+  <meta name="application-name" content="GROUPHUB">
   <meta name="google-adsense-account" content="ca-pub-9358521618675902">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9358521618675902" crossorigin="anonymous"></script>
-  <meta name="description" content="GroupHub: find and promote WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
+  <meta name="description" content="Promote your WhatsApp and Telegram groups for free on GROUPHUB. Browse moderated, working group invite links by topic, country and language, or add your own group in seconds.">
   <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -16,20 +19,22 @@
   <link rel="canonical" href="https://grouphub.in/">
   <!-- Social previews (absolute URLs) -->
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="GroupHub">
+  <meta property="og:site_name" content="GROUPHUB">
   <meta property="og:url" content="https://grouphub.in/">
-  <meta property="og:title" content="GroupHub: Find &amp; Promote WhatsApp and Telegram Groups">
-  <meta property="og:description" content="Promote your WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
+  <meta property="og:title" content="GROUPHUB – Promote WhatsApp &amp; Telegram Groups for Free">
+  <meta property="og:description" content="Promote your WhatsApp and Telegram groups for free on GROUPHUB. Browse moderated, working group invite links by topic, country and language, or add your own group in seconds.">
   <meta property="og:image" content="https://grouphub.in/og-image.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="GroupHub logo: promote WhatsApp and Telegram for free">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="GroupHub: Find &amp; Promote WhatsApp and Telegram Groups">
-  <meta name="twitter:description" content="Promote your WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
+  <meta name="twitter:title" content="GROUPHUB – Promote WhatsApp &amp; Telegram Groups for Free">
+  <meta name="twitter:description" content="Promote your WhatsApp and Telegram groups for free on GROUPHUB. Browse moderated, working group invite links by topic, country and language, or add your own group in seconds.">
   <meta name="twitter:image" content="https://grouphub.in/og-image.png">
   <meta name="twitter:image:alt" content="GroupHub logo">
+  <!-- Structured data (a data block: not executed, so the CSP does not apply to it) -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://grouphub.in/#website","name":"GROUPHUB","alternateName":"GroupHub","url":"https://grouphub.in/","inLanguage":"en","publisher":{"@id":"https://grouphub.in/#organization"},"potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://grouphub.in/?q={search_term_string}"},"query-input":"required name=search_term_string"}},{"@type":"Organization","@id":"https://grouphub.in/#organization","name":"GROUPHUB","alternateName":"GroupHub","url":"https://grouphub.in/","logo":{"@type":"ImageObject","url":"https://grouphub.in/icon-512.png","width":512,"height":512}}]}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -182,6 +187,14 @@
     .btn-join.wa { background: rgba(37,211,102,0.15); color: var(--wa); border: 1px solid rgba(37,211,102,0.3); }
     .btn-join.tg { background: rgba(42,171,238,0.15); color: var(--tg); border: 1px solid rgba(42,171,238,0.3); }
 
+    /* RECENT GROUPS INDEX (server-rendered, crawlable) */
+    .recent { max-width: 1100px; margin: 0 auto; padding: 0 24px 56px; }
+    .recent h2 { font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+    .recent ul { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 22px; }
+    .recent li { font-size: 0.82rem; color: var(--muted); line-height: 1.5; padding: 6px 0; border-bottom: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent li a { color: var(--text); font-weight: 700; text-decoration: none; }
+    .recent li a:hover { color: #d4a8ff; }
+    @media (max-width: 600px) { .recent { padding: 0 16px 48px; } .recent ul { grid-template-columns: 1fr; } }
     /* LOAD MORE */
     .load-more-wrap { text-align: center; padding: 10px 0 20px; }
     .btn-load { background: none; border: 1px solid rgba(176,106,255,0.25); color: var(--muted); font-size: 0.875rem; font-family: 'Nunito', sans-serif; font-weight: 700; padding: 12px 36px; border-radius: 99px; cursor: pointer; transition: all 0.2s; }
@@ -301,9 +314,9 @@
   <h1>Find Your <span>Perfect Group</span><br>in Seconds</h1>
   <p>Browse moderated public groups on WhatsApp and Telegram, filtered by topic, country and language. Every listing is reviewed before it appears.</p>
   <div class="hero-stats" id="heroStats">
-    <div class="hero-stat"><strong id="statGroups">–</strong><span>Approved groups</span></div>
-    <div class="hero-stat"><strong id="statCountries">–</strong><span>Countries</span></div>
-    <div class="hero-stat"><strong id="statCats">–</strong><span>Categories</span></div>
+    <div class="hero-stat"><strong id="statGroups"><!--SSR:STAT_GROUPS--></strong><span>Approved groups</span></div>
+    <div class="hero-stat"><strong id="statCountries"><!--SSR:STAT_COUNTRIES--></strong><span>Countries</span></div>
+    <div class="hero-stat"><strong id="statCats"><!--SSR:STAT_CATS--></strong><span>Categories</span></div>
   </div>
 </section>
 
@@ -371,12 +384,14 @@
 
 <!-- GRID -->
 <section class="section">
-  <div class="section-title" id="gridLabel">WhatsApp Groups</div>
-  <div class="grid" id="groupGrid" aria-live="polite"><div class="empty"><p>Loading groups…</p></div></div>
-  <div class="load-more-wrap" id="loadMoreWrap">
+  <div class="section-title" id="gridLabel"><!--SSR:GRID_LABEL--></div>
+  <div class="grid" id="groupGrid" aria-live="polite"><!--SSR:GRID--></div>
+  <div class="load-more-wrap" id="loadMoreWrap"<!--SSR:LOADMORE_STYLE-->>
     <button class="btn-load" type="button" data-action="load-more">Load more groups ↓</button>
   </div>
 </section>
+
+<!--SSR:INDEX-->
 
 <!-- ANIME MASCOT -->
 <div class="mascot-wrap" id="mascotWrap" data-action="mascot" aria-hidden="true">
@@ -523,6 +538,7 @@
 
 <div class="toast" id="toast" role="status"></div>
 
+<script src="/card-render.js" defer></script>
 <script src="/grouphub.js" defer></script>
 </body>
 </html>

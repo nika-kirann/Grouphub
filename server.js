@@ -40,6 +40,11 @@ function checkPassword(pw) {
 const store = process.env.DATABASE_URL
   ? new (require('./lib/pg-store'))(process.env.DATABASE_URL)
   : new JsonStore(DB_FILE);
+// Any change to groups clears the cached server-rendered homepage.
+['addGroup', 'updateGroup', 'deleteGroup', 'setImage', 'clearImage'].forEach((m) => {
+  const orig = store[m].bind(store);
+  store[m] = async (...args) => { const r = await orig(...args); homeCache = null; return r; };
+});
 
 // ---------- helpers ----------
 function clientIp(req) { return req.ip || req.socket.remoteAddress || 'unknown'; }
@@ -180,7 +185,22 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10kb' }));
 
 // Only the public/ folder is web-accessible (NOT the project root, server code or node_modules).
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'grouphub.html')));
+// Homepage: server-rendered first page + crawlable index (cached briefly; any write clears the cache).
+const render = require('./lib/render');
+let homeCache = null; // { html, at }
+const HOME_TTL_MS = 60e3;
+app.get('/', ah(async (req, res) => {
+  if (!homeCache || Date.now() - homeCache.at > HOME_TTL_MS) {
+    const list = (await store.groups((g) => g.status === 'approved')).map(publicGroup);
+    homeCache = { html: render.renderHome(list), at: Date.now() };
+  }
+  res.set('Cache-Control', 'no-cache').type('html').send(homeCache.html);
+}));
+app.get('/grouphub.html', (req, res) => res.redirect(301, '/')); // one canonical URL for the homepage
+app.get('/sitemap.xml', ah(async (req, res) => {
+  const list = await store.groups((g) => g.status === 'approved');
+  res.set('Cache-Control', 'public, max-age=3600').type('application/xml').send(render.renderSitemap(list));
+}));
 app.use(express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'deny' }));
 
 // ----- public API -----

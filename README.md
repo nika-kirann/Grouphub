@@ -69,6 +69,8 @@ lib/store.js         JSON-file storage with atomic writes (fallback)
 lib/pg-store.js      PostgreSQL storage (used when DATABASE_URL is set)
 lib/seed.js          Sample groups (SEED_SAMPLES=1)
 lib/spam.js          Spam words/rules used by auto-approve (edit freely)
+lib/render.js        Server-side homepage render + sitemap.xml
+public/card-render.js Card markup shared by server and browser
 lib/avatar.js        Fetches group profile pictures (allowlisted hosts only)
 test/                Unit tests (npm test) with saved sample pages
 db/schema.sql        Postgres tables (run automatically; can also be pasted into Supabase)
@@ -109,6 +111,11 @@ data/                Database (git-ignored)
     - Images: `pps.whatsapp.net`, `cdn*.telesco.pe`, `telegram.org`, `cdn.discordapp.com`
     It also follows at most 3 re-checked redirects, times out after 8 s, caps images at 2 MB and only accepts JPEG/PNG/WebP/GIF.
   - **Limitations:** WhatsApp only shows the picture for valid invites of groups that have one. Revoked invites and many Community invites show a generic image, which we skip. Telegram shows nothing for private or invalid invites, and its default logo is skipped. Platforms can change their pages or rate-limit at any time.
+- **SEO:**
+  - **Server-rendered homepage:** `GET /` is rendered on the server (`lib/render.js`) with the first page of WhatsApp cards, the hero stats and a "Recently added" list of up to 60 real approved groups (no Adult, no samples). All of it is escaped HTML, so crawlers see content without running JS; the browser JS then takes over with the same card markup (`public/card-render.js`). The page is cached for 60 s and the cache is cleared on any group change.
+  - **Other files:** `/sitemap.xml` lists the homepage with `lastmod` set to the latest approved-group update. `/robots.txt` blocks `/admin` and `/api/`.
+  - **Structured data:** JSON-LD for WebSite (with a `?q=` SearchAction, which the page supports) and Organization (opaque logo `icon-512.png`).
+  - **Redirect:** `/grouphub.html` 301-redirects to `/`.
 - **Google AdSense:** the AdSense script and `google-adsense-account` meta tag are in the `<head>` of `public/grouphub.html` (served at `/`), and `public/ads.txt` is served at `/ads.txt`. Only the public page (`/`, `/grouphub.html`) gets a CSP that allows Google's ad domains; admin pages and the API keep the strict CSP.
 - Health check: `GET /healthz` returns `{ ok: true, db: "postgres" | "json" }`, or 503 if the database is unreachable.
 - Sample groups are marked "Sample" and use fake invite codes. Delete them in the admin panel before launch.
