@@ -6,7 +6,30 @@
   <title>GroupHub — Find & Share Group Links</title>
   <meta name="google-adsense-account" content="ca-pub-9358521618675902">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9358521618675902" crossorigin="anonymous"></script>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="description" content="GroupHub: find and promote WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0a0b1a">
+  <link rel="canonical" href="https://grouphub.in/">
+  <!-- Social previews (absolute URLs) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GroupHub">
+  <meta property="og:url" content="https://grouphub.in/">
+  <meta property="og:title" content="GroupHub: Find &amp; Promote WhatsApp and Telegram Groups">
+  <meta property="og:description" content="Promote your WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
+  <meta property="og:image" content="https://grouphub.in/logo.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:image:alt" content="GroupHub logo: promote WhatsApp and Telegram for free">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="GroupHub: Find &amp; Promote WhatsApp and Telegram Groups">
+  <meta name="twitter:description" content="Promote your WhatsApp and Telegram groups for free. Browse moderated group links by topic, country and language.">
+  <meta name="twitter:image" content="https://grouphub.in/logo.png">
+  <meta name="twitter:image:alt" content="GroupHub logo">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -77,6 +100,10 @@
       width: 800px; height: 500px; border-radius: 50%; pointer-events: none;
       background: radial-gradient(ellipse, rgba(176,106,255,0.16) 0%, rgba(255,110,180,0.07) 50%, transparent 70%);
     }
+    .nav-emblem { display: block; height: 40px; width: auto; border-radius: 10px; }
+    .hero-logo { display: block; width: 200px; height: 200px; margin: -36px auto 8px; position: relative;
+      -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 62%, transparent 74%); mask-image: radial-gradient(circle at 50% 50%, #000 62%, transparent 74%);
+      animation: fadeUp 0.6s ease both; }
     .hero-badge {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(176,106,255,0.12); border: 1px solid rgba(176,106,255,0.3);
@@ -207,6 +234,8 @@
       nav { padding: 0 16px; }
       .nav-links a:not(.btn-add) { display: none; }
       .hero { padding: 56px 16px 36px; }
+      .hero-logo { width: 150px; height: 150px; margin-top: -30px; }
+      .nav-emblem { height: 34px; }
       .hero-stats { gap: 24px; }
       .filter-row { flex-direction: column; }
       .section { padding: 0 16px 56px; }
@@ -256,14 +285,8 @@
 
 <!-- NAV -->
 <nav>
-  <a href="#" class="nav-logo">
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-      <rect width="26" height="26" rx="7" fill="url(#gNav)"/>
-      <path d="M7 13h12M13 7v12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
-      <circle cx="9" cy="9" r="2" fill="#fff" opacity=".7"/>
-      <circle cx="17" cy="17" r="2" fill="#fff" opacity=".7"/>
-      <defs><linearGradient id="gNav" x1="0" y1="0" x2="26" y2="26"><stop stop-color="#b06aff"/><stop offset="1" stop-color="#ff6eb4"/></linearGradient></defs>
-    </svg>
+  <a href="#" class="nav-logo" aria-label="GroupHub home">
+    <picture><source srcset="/logo-header.webp" type="image/webp"><img class="nav-emblem" src="/logo-header.png" width="58" height="40" alt=""></picture>
     GroupHub
   </a>
   <div class="nav-links">
@@ -275,6 +298,7 @@
 <!-- HERO -->
 <section class="hero">
   <div class="hero-glow"></div>
+  <picture><source srcset="/logo.webp" type="image/webp"><img class="hero-logo" src="/logo.png" width="200" height="200" alt="GroupHub: promote WhatsApp &amp; Telegram for free" fetchpriority="high" decoding="async"></picture>
   <div class="hero-badge">✦ WhatsApp &amp; Telegram Groups</div>
   <h1>Find Your <span>Perfect Group</span><br>in Seconds</h1>
   <p>Browse moderated public groups on WhatsApp and Telegram, filtered by topic, country and language. Every listing is reviewed before it appears.</p>
