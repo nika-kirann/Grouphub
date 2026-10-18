@@ -91,6 +91,7 @@ data/                Database (git-ignored)
 
 ## Notes and limits
 - Admin sessions and rate limits are kept in memory. That's fine for a single instance (like Render's free plan), but a restart or sleep/wake logs admins out and resets rate limits. To run more than one instance, move sessions and rate limits to Redis or Postgres.
+- **Google AdSense:** the AdSense script and `google-adsense-account` meta tag are in the `<head>` of `public/grouphub.html` (served at `/`), and `public/ads.txt` is served at `/ads.txt`. Only the public page (`/`, `/grouphub.html`) gets a CSP that allows Google's ad domains; admin pages and the API keep the strict CSP.
 - Health check: `GET /healthz` returns `{ ok: true, db: "postgres" | "json" }`, or 503 if the database is unreachable.
 - Sample groups are marked "Sample" and use fake invite codes. Delete them in the admin panel before launch.
 - GroupHub is not affiliated with WhatsApp or Telegram.

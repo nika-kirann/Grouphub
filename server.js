@@ -101,9 +101,24 @@ const app = express();
 app.disable('x-powered-by');
 if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY); // e.g. "1" behind one reverse proxy
 
+// Strict CSP everywhere (admin, API). The public page gets a relaxed CSP so Google AdSense can load.
+const STRICT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
+const ADS_HOSTS = 'https://pagead2.googlesyndication.com https://*.googlesyndication.com https://adservice.google.com https://*.google.com https://*.doubleclick.net https://*.googletagservices.com https://*.googleadservices.com https://www.googletagmanager.com https://fundingchoicesmessages.google.com https://ep1.adtrafficquality.google https://*.adtrafficquality.google';
+const PUBLIC_CSP = [
+  "default-src 'self'",
+  `script-src 'self' ${ADS_HOSTS}`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  'font-src https://fonts.gstatic.com',
+  "img-src 'self' https: data:",
+  `connect-src 'self' https://*.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.googleadservices.com`,
+  `frame-src https://*.googlesyndication.com https://googleads.g.doubleclick.net https://*.doubleclick.net https://www.google.com https://*.google.com https://ep2.adtrafficquality.google https://*.adtrafficquality.google`,
+  "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'", "object-src 'none'"
+].join('; ');
+const PUBLIC_PAGES = new Set(['/', '/grouphub.html']);
+
 app.use((req, res, next) => {
   res.set({
-    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
+    'Content-Security-Policy': PUBLIC_PAGES.has(req.path) ? PUBLIC_CSP : STRICT_CSP,
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
