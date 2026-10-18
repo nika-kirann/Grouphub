@@ -1,0 +1,27 @@
+# Render Blueprint for GroupHub (Render dashboard: New > Blueprint > pick this repo).
+# Values marked sync: false are secrets: Render asks for them when you create the Blueprint.
+services:
+  - type: web
+    name: grouphub
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL          # Supabase connection string (Session pooler, port 5432)
+        sync: false
+      - key: ADMIN_PASSWORD_HASH   # output of: npm run hash-password -- "your long password"
+        sync: false
+      - key: SEED_SAMPLES          # "1" = insert sample groups if the database is empty
+        value: "0"
+      - key: IP_HASH_SALT          # keeps report de-duplication stable across restarts
+        generateValue: true

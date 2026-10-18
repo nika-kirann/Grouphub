@@ -7,7 +7,8 @@
     "hash-password": "node lib/hash-password.js"
   },
   "dependencies": {
-    "express": "^4.22.3"
+    "express": "^4.22.3",
+    "pg": "^8.23.1"
   },
   "description": "GroupHub: moderated directory of WhatsApp and Telegram group invite links",
   "private": true,

@@ -2,7 +2,8 @@
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
-const Store = require('./lib/store');
+const JsonStore = require('./lib/store');
+const { sampleGroups } = require('./lib/seed');
 const V = require('./lib/validate');
 
 // ---------- config ----------
@@ -34,38 +35,16 @@ function checkPassword(pw) {
   return crypto.timingSafeEqual(h, ADMIN.hash);
 }
 
-// ---------- storage (seeded with clearly-fake sample groups on first run) ----------
-const SEED = [
-  ['Anime World JP', 'Anime / Manga', 'Japan', 'Japanese', 'wa', 890, 'All things anime, manga and cosplay: daily recommendations and fan art.'],
-  ['Tech Enthusiasts India', 'Science / Tech', 'India', 'English', 'wa', 220, 'Daily discussions on gadgets, software, AI, and everything tech.'],
-  ['Study Buddies UK', 'Education', 'United Kingdom', 'English', 'wa', 180, 'University students share notes, resources, and study tips.'],
-  ['Lagos Business Network', 'Business / Marketing', 'Nigeria', 'English', 'tg', 410, 'Entrepreneurs and professionals in Lagos connect and grow.'],
-  ['Bollywood Fans Club', 'Entertainment', 'India', 'Hindi', 'wa', 530, 'Movies, songs, gossip, and memes: everything Bollywood.'],
-  ['FIFA & Football Talk', 'Sports', 'United Kingdom', 'English', 'tg', 295, 'Premier League, Champions League, fantasy football and more.'],
-  ['Anime Telegram Hub', 'Anime / Manga', 'Japan', 'Japanese', 'tg', 1200, 'Anime discussion on Telegram: subs, dubs and reviews.'],
-  ['Global Music Lovers', 'Music / Audio', 'United States', 'English', 'tg', 340, 'Share music recommendations, playlists, and discover new artists.'],
-  ['Fitness & Nutrition', 'Health / Fitness', 'India', 'English', 'wa', 200, 'Workout plans, diet tips, progress pics and motivation.'],
-  ['Naija Comedy Hub', 'Entertainment', 'Nigeria', 'English', 'wa', 660, 'Viral memes, funny videos, and comedy skits every day.'],
-  ['Dev & Design Chat', 'Science / Tech', 'United States', 'English', 'tg', 450, 'Developers, designers, and product people talking shop.'],
-  ['Travel South Asia', 'Travel', 'India', 'English', 'wa', 175, 'Hidden gems, travel tips, and trip planning across South Asia.'],
-  ['Manga Collectors', 'Anime / Manga', 'United States', 'English', 'tg', 540, 'Buy, sell, trade manga volumes and talk about your favourite series.'],
-  ['Brasil Empreendedores', 'Business / Marketing', 'Brazil', 'Portuguese', 'tg', 310, 'Comunidade de empreendedores, freelancers e startups.'],
-  ['Gaming Arena PH', 'Gaming / Apps', 'Philippines', 'English', 'wa', 780, 'Mobile and PC gaming, tournament announcements and squad formation.']
-];
-const store = new Store(DB_FILE, (s) => {
-  SEED.forEach(([name, cat, country, lang, plat, members, desc], i) => {
-    const n = String(i + 1).padStart(4, '0');
-    const link = plat === 'wa' ? `https://chat.whatsapp.com/SAMPLEFAKEGROUPHUB${n}` : `https://t.me/+SAMPLEfakeGROUPHUB${n}`;
-    const v = V.normalizeInvite(plat, link);
-    const d = new Date(Date.now() - (i + 1) * 36e5 * 20).toISOString();
-    s.data.groups.push({ id: s.id(), name, cat, country, lang, plat, members, desc, link: v.url, linkKey: v.key,
-      status: 'approved', featured: i < 2, sample: true, createdAt: d, updatedAt: d });
-  });
-});
+// ---------- storage ----------
+// Postgres (e.g. Supabase) when DATABASE_URL is set; otherwise a local JSON file.
+const store = process.env.DATABASE_URL
+  ? new (require('./lib/pg-store'))(process.env.DATABASE_URL)
+  : new JsonStore(DB_FILE);
 
 // ---------- helpers ----------
 function clientIp(req) { return req.ip || req.socket.remoteAddress || 'unknown'; }
-const HASH_SALT = crypto.randomBytes(16).toString('hex');
+// Set IP_HASH_SALT to keep report de-duplication stable across restarts (optional).
+const HASH_SALT = process.env.IP_HASH_SALT || crypto.randomBytes(16).toString('hex');
 function anonId(req) { return crypto.createHash('sha256').update(HASH_SALT + clientIp(req)).digest('hex').slice(0, 16); }
 
 // Fixed-window in-memory rate limiter (per IP + bucket).
@@ -114,6 +93,9 @@ function publicGroup(g) {
     desc: g.desc, members: g.members, featured: !!g.featured, sample: !!g.sample, createdAt: g.createdAt };
 }
 
+// Express 4 does not catch rejected promises, so wrap async handlers.
+const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 // ---------- app ----------
 const app = express();
 app.disable('x-powered-by');
@@ -147,37 +129,45 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'grouphub
 app.use(express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'deny' }));
 
 // ----- public API -----
+// Health check for Render (also verifies the database connection).
+app.get('/healthz', ah(async (req, res) => {
+  try { await store.ping(); res.set('Cache-Control', 'no-store').json({ ok: true, db: store.kind }); }
+  catch (e) { res.status(503).json({ ok: false, error: 'database unavailable' }); }
+}));
+
 app.get('/api/meta', (req, res) => res.json({ adultCategory: V.ADULT_CATEGORY, categories: V.CATEGORIES, countries: V.COUNTRIES, languages: V.LANGUAGES, reasons: V.REPORT_REASONS }));
 
 // Adult groups are only returned when explicitly requested (?includeAdult=1), after the client-side 18+ gate.
-app.get('/api/groups', (req, res) => {
+app.get('/api/groups', ah(async (req, res) => {
   const includeAdult = req.query.includeAdult === '1';
-  const list = store.groups((g) => g.status === 'approved' && (includeAdult || g.cat !== V.ADULT_CATEGORY))
+  const list = (await store.groups((g) => g.status === 'approved' && (includeAdult || g.cat !== V.ADULT_CATEGORY)))
     .sort((a, b) => (b.featured - a.featured) || b.createdAt.localeCompare(a.createdAt))
     .map(publicGroup);
   res.set('Cache-Control', 'no-cache').json({ groups: list });
-});
+}));
 
-app.post('/api/groups', rateLimit('submit', 10, 60 * 60e3), (req, res) => {
+app.post('/api/groups', rateLimit('submit', 10, 60 * 60e3), ah(async (req, res) => {
   const body = req.body || {};
   if (body.website) return res.status(201).json({ ok: true, status: 'pending' }); // honeypot: silently drop bots
   const v = V.validateGroup(body);
   if (!v.ok) return res.status(400).json({ error: v.errors[0], errors: v.errors });
-  if (store.findByKey(v.value.linkKey)) return res.status(409).json({ error: 'This invite link has already been submitted.' });
-  const g = store.addGroup(Object.assign(v.value, { status: 'pending', submitter: anonId(req) }));
+  if (await store.findByKey(v.value.linkKey)) return res.status(409).json({ error: 'This invite link has already been submitted.' });
+  let g;
+  try { g = await store.addGroup(Object.assign(v.value, { status: 'pending', submitter: anonId(req) })); }
+  catch (e) { if (e.code === '23505') return res.status(409).json({ error: 'This invite link has already been submitted.' }); throw e; } // unique race
   res.status(201).json({ ok: true, id: g.id, status: 'pending' });
-});
+}));
 
-app.post('/api/groups/:id/report', rateLimit('report', 20, 60 * 60e3), (req, res) => {
-  const g = store.group(req.params.id);
+app.post('/api/groups/:id/report', rateLimit('report', 20, 60 * 60e3), ah(async (req, res) => {
+  const g = await store.group(req.params.id);
   if (!g || g.status !== 'approved') return res.status(404).json({ error: 'Group not found.' });
   const reason = (req.body || {}).reason;
   if (!V.REPORT_REASONS.includes(reason)) return res.status(400).json({ error: 'Choose a report reason.' });
   const who = anonId(req);
-  const dupe = store.reportsFor(g.id).some((r) => r.reporter === who && Date.now() - Date.parse(r.createdAt) < 864e5);
-  if (!dupe) store.addReport(g.id, reason, V.cleanText((req.body || {}).details, 300), who);
+  const dupe = (await store.reportsFor(g.id)).some((r) => r.reporter === who && Date.now() - Date.parse(r.createdAt) < 864e5);
+  if (!dupe) await store.addReport(g.id, reason, V.cleanText((req.body || {}).details, 300), who);
   res.status(201).json({ ok: true });
-});
+}));
 
 // ----- admin -----
 const ADMIN_VIEWS = path.join(__dirname, 'admin', 'views');
@@ -207,26 +197,26 @@ const api = express.Router();
 api.use(requireAdmin);
 api.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 api.get('/me', (req, res) => res.json({ ok: true, csrf: req.session.csrf }));
-api.get('/stats', (req, res) => {
-  const counts = store.reportCounts(), all = store.groups(), week = Date.now() - 7 * 864e5;
+api.get('/stats', ah(async (req, res) => {
+  const counts = await store.reportCounts(), all = await store.groups(), week = Date.now() - 7 * 864e5;
   const by = (s) => all.filter((g) => g.status === s).length;
   res.json({ pending: by('pending'), approved: by('approved'), rejected: by('rejected'),
     reported: Object.keys(counts).length, openReports: Object.values(counts).reduce((a, b) => a + b, 0),
     featured: all.filter((g) => g.featured && g.status === 'approved').length,
     submittedThisWeek: all.filter((g) => Date.parse(g.createdAt) > week && !g.sample).length, total: all.length });
-});
-api.get('/groups', (req, res) => {
+}));
+api.get('/groups', ah(async (req, res) => {
   const status = String(req.query.status || 'pending'), q = String(req.query.q || '').toLowerCase();
-  const counts = store.reportCounts();
-  let list = status === 'reported' ? store.groups((g) => counts[g.id]) : store.groups((g) => g.status === status);
+  const counts = await store.reportCounts();
+  let list = status === 'reported' ? await store.groups((g) => counts[g.id]) : await store.groups((g) => g.status === status);
   if (q) list = list.filter((g) => (g.name + ' ' + g.desc + ' ' + g.link).toLowerCase().includes(q));
   list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0 }))
     .sort((a, b) => status === 'reported' ? b.reportCount - a.reportCount : b.createdAt.localeCompare(a.createdAt));
   res.json({ groups: list });
-});
-api.get('/groups/:id/reports', (req, res) => res.json({ reports: store.reportsFor(req.params.id) }));
-api.patch('/groups/:id', (req, res) => {
-  const g = store.group(req.params.id); if (!g) return res.status(404).json({ error: 'Not found.' });
+}));
+api.get('/groups/:id/reports', ah(async (req, res) => res.json({ reports: await store.reportsFor(req.params.id) })));
+api.patch('/groups/:id', ah(async (req, res) => {
+  const g = await store.group(req.params.id); if (!g) return res.status(404).json({ error: 'Not found.' });
   const b = req.body || {}, fields = {};
   const editable = ['plat', 'link', 'name', 'cat', 'country', 'lang', 'desc', 'members'].filter((k) => b[k] !== undefined);
   if (editable.length) {
@@ -235,16 +225,16 @@ api.patch('/groups/:id', (req, res) => {
     input._existingPlat = g.plat;
     const v = V.validateGroup(input, { partial: true });
     if (!v.ok) return res.status(400).json({ error: v.errors[0], errors: v.errors });
-    if (v.value.linkKey) { const other = store.findByKey(v.value.linkKey); if (other && other.id !== g.id) return res.status(409).json({ error: 'Another listing already uses this link.' }); }
+    if (v.value.linkKey) { const other = await store.findByKey(v.value.linkKey); if (other && other.id !== g.id) return res.status(409).json({ error: 'Another listing already uses this link.' }); }
     Object.assign(fields, v.value);
   }
   if (b.status !== undefined) { if (!['pending', 'approved', 'rejected'].includes(b.status)) return res.status(400).json({ error: 'Bad status.' }); fields.status = b.status; }
   if (b.featured !== undefined) fields.featured = !!b.featured;
   if (fields.status && fields.status !== 'approved') fields.featured = false;
-  res.json({ group: store.updateGroup(g.id, fields) });
-});
-api.delete('/groups/:id', (req, res) => store.deleteGroup(req.params.id) ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found.' }));
-api.post('/groups/:id/clear-reports', (req, res) => res.json({ cleared: store.clearReports(req.params.id) }));
+  res.json({ group: await store.updateGroup(g.id, fields) });
+}));
+api.delete('/groups/:id', ah(async (req, res) => ((await store.deleteGroup(req.params.id)) ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found.' }))));
+api.post('/groups/:id/clear-reports', ah(async (req, res) => res.json({ cleared: await store.clearReports(req.params.id) })));
 app.use('/api/admin', api);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
@@ -253,4 +243,16 @@ app.use((err, req, res, next) => {
   console.error(err); res.status(500).json({ error: 'Server error.' });
 });
 
-app.listen(PORT, () => console.log(`GroupHub running on http://localhost:${PORT}  (admin: /admin)`));
+// Start: prepare storage (creates tables on Postgres), optionally seed samples, then listen on $PORT.
+// Note: admin sessions and rate limits live in memory, which is fine for a single instance (e.g. Render free).
+(async function start() {
+  try {
+    await store.init({ seed: process.env.SEED_SAMPLES === '1' ? sampleGroups() : null });
+  } catch (e) {
+    console.error('[db] Failed to initialise ' + store.kind + ' storage:', e.message);
+    process.exit(1);
+  }
+  const server = app.listen(PORT, () => console.log(`GroupHub running on http://localhost:${PORT}  (storage: ${store.kind}, admin: /admin)`));
+  const shutdown = () => { server.close(() => store.close().finally(() => process.exit(0))); setTimeout(() => process.exit(0), 5000).unref(); };
+  process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
+})();
