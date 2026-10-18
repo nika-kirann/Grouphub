@@ -45,10 +45,18 @@
     if (g.status !== 'rejected') actions.push(B('✕ Reject', 'warn', () => act(g.id, () => patch(g.id, { status: 'rejected' }), 'Rejected')));
     if (g.status === 'approved') actions.push(B(g.featured ? '☆ Unfeature' : '★ Feature', 'gold', () => act(g.id, () => patch(g.id, { featured: !g.featured }), g.featured ? 'Unfeatured' : 'Featured')));
     actions.push(B('✎ Edit', '', () => openEdit(g)));
+    if (g.status === 'approved') actions.push(B('🖼 Refresh picture', '', async (e) => {
+      const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Fetching…';
+      try { const r = await api('/api/admin/groups/' + encodeURIComponent(g.id) + '/refresh-image', { method: 'POST' }); toast(r.ok ? 'Picture updated' : 'No picture: ' + (r.imageError || r.imageStatus)); await loadList(); }
+      catch (ex) { toast('⚠ ' + ex.message); btn.disabled = false; btn.textContent = '🖼 Refresh picture'; }
+    }));
     if (g.reportCount) actions.push(B('Clear reports', '', () => act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id) + '/clear-reports', { method: 'POST' }), 'Reports cleared')));
     actions.push(B('🗑 Delete', 'warn', () => { if (confirm('Permanently delete "' + g.name + '"?')) act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id), { method: 'DELETE' }), 'Deleted'); }));
     const el = h('article', { class: 'row' + (g.featured ? ' featured' : ''), 'data-id': g.id },
-      h('div', null,
+      h('div', { class: 'row-main' },
+        g.img ? h('img', { class: 'thumb', src: g.img, alt: '', width: 56, height: 56, loading: 'lazy' })
+          : h('span', { class: 'thumb letter', 'aria-hidden': 'true' }, (Array.from(String(g.name).trim())[0] || '#').toUpperCase()),
+        h('div', null,
         h('h3', null, g.name, g.featured ? h('span', { class: 'pill feat' }, '★ Featured') : null, g.sample ? h('span', { class: 'pill' }, 'Sample') : null),
         h('div', { class: 'meta' },
           h('span', { class: 'pill ' + g.plat }, g.plat === 'wa' ? 'WhatsApp' : 'Telegram'),
@@ -58,7 +66,9 @@
           g.reportCount ? h('span', { class: 'pill rep' }, '⚑ ' + g.reportCount + ' report' + (g.reportCount > 1 ? 's' : '')) : null,
           h('span', { class: 'pill' }, 'Added ' + new Date(g.createdAt).toLocaleString())),
         g.desc ? h('p', { class: 'desc' }, g.desc) : h('p', { class: 'desc muted' }, '(no description)'),
-        h('a', { class: 'link', href: g.link, target: '_blank', rel: 'noopener noreferrer nofollow' }, g.link)),
+        h('a', { class: 'link', href: g.link, target: '_blank', rel: 'noopener noreferrer nofollow' }, g.link),
+        g.status === 'approved' && !g.img && g.imageStatus ? h('p', { class: 'muted small' }, '🖼 No picture (' + g.imageStatus + '): ' + (g.imageError || '') + (g.imageCheckedAt ? ' · checked ' + new Date(g.imageCheckedAt).toLocaleString() : '')) : null,
+        g.status === 'approved' && !g.img && !g.imageStatus && !g.sample ? h('p', { class: 'muted small' }, '🖼 Picture not fetched yet') : null)),
       h('div', { class: 'actions' }, actions));
     if (g.reportCount) {
       const box = h('div', { class: 'reports' }, h('span', { class: 'muted' }, 'Loading reports…'));
@@ -95,6 +105,11 @@
   // ----- init -----
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { tab = t.dataset.tab; loadList(); }));
   let qt; $('q').addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(loadList, 200); });
+  $('backfillBtn').addEventListener('click', async () => {
+    if (!confirm('Fetch pictures for all approved groups that don\'t have one yet? This runs in the background.')) return;
+    try { const r = await api('/api/admin/images/backfill', { method: 'POST', body: JSON.stringify({ retry: true }) }); toast(r.queued ? 'Fetching ' + r.queued + ' picture(s) in the background… refresh in a minute' : 'Every approved group already has a picture (or none is available)'); }
+    catch (e) { toast('⚠ ' + e.message); }
+  });
   $('logoutBtn').addEventListener('click', async () => { await api('/admin/logout', { method: 'POST' }).catch(() => {}); location.replace('/admin'); });
   (async function init() {
     try {

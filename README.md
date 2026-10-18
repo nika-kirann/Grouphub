@@ -68,6 +68,8 @@ lib/validate.js      Invite-link and field validation (allow-lists)
 lib/store.js         JSON-file storage with atomic writes (fallback)
 lib/pg-store.js      PostgreSQL storage (used when DATABASE_URL is set)
 lib/seed.js          Sample groups (SEED_SAMPLES=1)
+lib/avatar.js        Fetches group profile pictures (allowlisted hosts only)
+test/                Unit tests (npm test) with saved sample pages
 db/schema.sql        Postgres tables (run automatically; can also be pasted into Supabase)
 render.yaml          Render Blueprint
 lib/hash-password.js Helper for ADMIN_PASSWORD_HASH
@@ -91,6 +93,16 @@ data/                Database (git-ignored)
 
 ## Notes and limits
 - Admin sessions and rate limits are kept in memory. That's fine for a single instance (like Render's free plan), but a restart or sleep/wake logs admins out and resets rate limits. To run more than one instance, move sessions and rate limits to Redis or Postgres.
+- **Group pictures:** when an admin approves a group, the server fetches the group's profile picture in the background. Approval never waits for it.
+  - **Sources:** WhatsApp and Telegram pictures come from the invite page's `og:image`. Discord pictures come from the invite API (`discord.gg/…` links).
+  - **Storage:** the picture is resized to a 256×256 WebP with `sharp` (an optional dependency). Without sharp, originals up to 300 KB are kept as-is. Pictures are stored in Postgres (`group_images` table) or `data/images/` (JSON store), because platform image URLs expire. They're served from `/img/group/<id>?v=<version>` with a one-year cache and an ETag.
+  - **No picture:** if there isn't one (or the fetch fails), the card shows a coloured letter avatar. The admin row shows why.
+  - **Admin controls:** each approved row has **🖼 Refresh picture**. **🖼 Fetch missing pictures** in the top bar backfills every approved group that has no picture yet.
+  - **Safety:** the fetcher only requests https URLs on fixed hosts:
+    - Pages and APIs: `chat.whatsapp.com`, `t.me`, `telegram.me`, `discord.com`
+    - Images: `pps.whatsapp.net`, `cdn*.telesco.pe`, `telegram.org`, `cdn.discordapp.com`
+    It also follows at most 3 re-checked redirects, times out after 8 s, caps images at 2 MB and only accepts JPEG/PNG/WebP/GIF.
+  - **Limitations:** WhatsApp only shows the picture for valid invites of groups that have one. Revoked invites and many Community invites show a generic image, which we skip. Telegram shows nothing for private or invalid invites, and its default logo is skipped. Platforms can change their pages or rate-limit at any time.
 - **Google AdSense:** the AdSense script and `google-adsense-account` meta tag are in the `<head>` of `public/grouphub.html` (served at `/`), and `public/ads.txt` is served at `/ads.txt`. Only the public page (`/`, `/grouphub.html`) gets a CSP that allows Google's ad domains; admin pages and the API keep the strict CSP.
 - Health check: `GET /healthz` returns `{ ok: true, db: "postgres" | "json" }`, or 503 if the database is unreachable.
 - Sample groups are marked "Sample" and use fake invite codes. Delete them in the admin panel before launch.

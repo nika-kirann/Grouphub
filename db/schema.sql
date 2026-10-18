@@ -20,6 +20,12 @@ create table if not exists groups (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+-- Profile picture metadata (added later; ALTER ... IF NOT EXISTS migrates existing databases on startup).
+alter table groups add column if not exists image_version    integer;     -- bumps on every new picture; null = no picture
+alter table groups add column if not exists image_status     text;        -- 'ok' | 'none' (platform has no picture) | 'error'
+alter table groups add column if not exists image_error      text;
+alter table groups add column if not exists image_checked_at timestamptz;
+
 create index if not exists groups_status_created_idx on groups (status, created_at desc);
 create index if not exists groups_cat_idx on groups (cat);
 
@@ -33,8 +39,18 @@ create table if not exists reports (
 );
 create index if not exists reports_group_idx on reports (group_id, created_at desc);
 
+-- Our own copy of each group's profile picture (platform image URLs expire). ~256x256 webp, a few KB each.
+create table if not exists group_images (
+  group_id     text primary key references groups (id) on delete cascade,
+  content_type text not null,
+  data         bytea not null,
+  version      integer not null,
+  updated_at   timestamptz not null default now()
+);
+
 -- Supabase exposes tables in the public schema through its auto-generated REST API.
 -- Turning on Row Level Security with NO policies blocks that API (anon/authenticated keys)
 -- while the GroupHub server, which connects as the database owner, keeps full access.
 alter table groups enable row level security;
 alter table reports enable row level security;
+alter table group_images enable row level security;

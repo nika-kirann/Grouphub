@@ -90,7 +90,42 @@ function requireAdmin(req, res, next) {
 
 function publicGroup(g) {
   return { id: g.id, name: g.name, cat: g.cat, country: g.country, lang: g.lang, plat: g.plat, link: g.link,
-    desc: g.desc, members: g.members, featured: !!g.featured, sample: !!g.sample, createdAt: g.createdAt };
+    desc: g.desc, members: g.members, featured: !!g.featured, sample: !!g.sample, createdAt: g.createdAt, img: imgUrl(g) };
+}
+// Same-origin picture URL; ?v= changes whenever the picture changes so it can be cached "forever".
+const imgUrl = (g) => (g.imageVersion ? `/img/group/${encodeURIComponent(g.id)}?v=${g.imageVersion}` : null);
+
+// ---------- profile pictures (fetched in the background; never blocks moderation) ----------
+const avatar = require('./lib/avatar');
+const imgQueue = [], imgQueued = new Set();
+let imgActive = 0;
+const IMG_CONCURRENCY = 2;
+/** Fetch + store the picture for one group now. Resolves the updated group (or null). */
+async function refreshImage(id) {
+  const g = await store.group(id);
+  if (!g) return null;
+  const r = await avatar.fetchGroupImage(g.link);
+  const fresh = await store.group(id); // the group may have been edited/deleted meanwhile
+  if (!fresh || fresh.link !== g.link) return fresh;
+  if (r.ok) {
+    await store.setImage(id, r.data, r.type);
+    console.log(`[img] ${id} ${g.link}: stored ${r.type} ${r.data.length} bytes`);
+  } else {
+    await store.updateGroup(id, { imageStatus: r.status, imageError: r.reason, imageCheckedAt: new Date().toISOString() });
+    console.warn(`[img] ${id} ${g.link}: ${r.status}: ${r.reason}`);
+  }
+  return store.group(id);
+}
+function queueImage(id) {
+  if (imgQueued.has(id)) return false;
+  imgQueued.add(id); imgQueue.push(id); pumpImages(); return true;
+}
+function pumpImages() {
+  while (imgActive < IMG_CONCURRENCY && imgQueue.length) {
+    const id = imgQueue.shift(); imgActive++;
+    refreshImage(id).catch((e) => console.error('[img] ' + id + ' failed:', e.message))
+      .finally(() => { imgQueued.delete(id); setTimeout(() => { imgActive--; pumpImages(); }, 300); }); // small gap: be polite to the platforms
+  }
 }
 
 // Express 4 does not catch rejected promises, so wrap async handlers.
@@ -148,6 +183,19 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false, dotfiles:
 app.get('/healthz', ah(async (req, res) => {
   try { await store.ping(); res.set('Cache-Control', 'no-store').json({ ok: true, db: store.kind }); }
   catch (e) { res.status(503).json({ ok: false, error: 'database unavailable' }); }
+}));
+
+// Group pictures: public for approved groups, admins can also see others. Long cache + ETag; the URL carries ?v=<version>.
+app.get('/img/group/:id', ah(async (req, res) => {
+  const g = await store.group(req.params.id);
+  const admin = !!getSession(req);
+  if (!g || !g.imageVersion || (g.status !== 'approved' && !admin)) return res.status(404).end();
+  const etag = `"${g.id}-${g.imageVersion}"`;
+  res.set({ ETag: etag, 'Cache-Control': g.status === 'approved' && String(req.query.v) === String(g.imageVersion) ? 'public, max-age=31536000, immutable' : 'private, no-cache', 'Content-Security-Policy': "default-src 'none'; sandbox" });
+  if (req.get('If-None-Match') === etag) return res.status(304).end();
+  const img = await store.getImage(g.id);
+  if (!img) return res.status(404).end();
+  res.type(img.type).send(img.data);
 }));
 
 app.get('/api/meta', (req, res) => res.json({ adultCategory: V.ADULT_CATEGORY, categories: V.CATEGORIES, countries: V.COUNTRIES, languages: V.LANGUAGES, reasons: V.REPORT_REASONS }));
@@ -225,7 +273,7 @@ api.get('/groups', ah(async (req, res) => {
   const counts = await store.reportCounts();
   let list = status === 'reported' ? await store.groups((g) => counts[g.id]) : await store.groups((g) => g.status === status);
   if (q) list = list.filter((g) => (g.name + ' ' + g.desc + ' ' + g.link).toLowerCase().includes(q));
-  list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0 }))
+  list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0, img: imgUrl(g) }))
     .sort((a, b) => status === 'reported' ? b.reportCount - a.reportCount : b.createdAt.localeCompare(a.createdAt));
   res.json({ groups: list });
 }));
@@ -246,7 +294,25 @@ api.patch('/groups/:id', ah(async (req, res) => {
   if (b.status !== undefined) { if (!['pending', 'approved', 'rejected'].includes(b.status)) return res.status(400).json({ error: 'Bad status.' }); fields.status = b.status; }
   if (b.featured !== undefined) fields.featured = !!b.featured;
   if (fields.status && fields.status !== 'approved') fields.featured = false;
-  res.json({ group: await store.updateGroup(g.id, fields) });
+  const linkChanged = fields.link && fields.link !== g.link;
+  if (linkChanged) await store.clearImage(g.id); // old picture belongs to the old link
+  const updated = await store.updateGroup(g.id, fields);
+  // Fetch the picture in the background on approval (or when an approved group's link changes). Approval never waits for it.
+  if (updated.status === 'approved' && ((fields.status === 'approved' && g.status !== 'approved') || linkChanged)) queueImage(g.id);
+  res.json({ group: updated });
+}));
+// Re-fetch one group's picture now and report the result (admin "Refresh picture" button).
+api.post('/groups/:id/refresh-image', rateLimit('refreshimg', 60, 60 * 60e3), ah(async (req, res) => {
+  const g = await store.group(req.params.id); if (!g) return res.status(404).json({ error: 'Not found.' });
+  const updated = await refreshImage(g.id);
+  res.json({ ok: updated.imageStatus === 'ok', imageStatus: updated.imageStatus, imageError: updated.imageError, img: imgUrl(updated) });
+}));
+// One-off backfill: queue every approved, non-sample group that has no picture yet (retry=1 also retries earlier failures).
+api.post('/images/backfill', ah(async (req, res) => {
+  const retry = (req.body || {}).retry === true;
+  const todo = await store.groups((g) => g.status === 'approved' && !g.sample && !g.imageVersion && (retry || !g.imageStatus));
+  const queued = todo.filter((g) => queueImage(g.id)).length;
+  res.json({ queued, inQueue: imgQueue.length + imgActive });
 }));
 api.delete('/groups/:id', ah(async (req, res) => ((await store.deleteGroup(req.params.id)) ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found.' }))));
 api.post('/groups/:id/clear-reports', ah(async (req, res) => res.json({ cleared: await store.clearReports(req.params.id) })));

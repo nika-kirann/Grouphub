@@ -137,6 +137,10 @@
     .card-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .card-icon.wa { background: rgba(37,211,102,0.12); box-shadow: 0 0 10px rgba(37,211,102,0.12); }
     .card-icon.tg { background: rgba(42,171,238,0.12); box-shadow: 0 0 10px rgba(42,171,238,0.12); }
+    .card-icon.avatar { position: relative; overflow: visible; }
+    .avatar-img, .avatar-letter { width: 48px; height: 48px; border-radius: 14px; object-fit: cover; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.25rem; color: #fff; background: var(--bg3); }
+    .avatar-plat { position: absolute; right: -5px; bottom: -5px; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--surface); }
+    .avatar-plat svg { width: 16px; height: 16px; }
     .card-info { flex: 1; min-width: 0; }
     .card-name { font-family: 'Space Grotesk', sans-serif; font-size: 0.97rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .card-meta { display: flex; align-items: center; gap: 5px; margin-top: 5px; flex-wrap: wrap; }

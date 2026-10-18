@@ -68,13 +68,32 @@
       (!cat || g.cat === cat) && (!country || g.country === country) && (!lang || g.lang === lang));
   }
 
+  // Group picture (stored on our server, same origin) or a coloured letter avatar; small platform badge on top.
+  function letterAvatar(g) {
+    let hsh = 0; for (const c of String(g.name)) hsh = (hsh * 31 + c.codePointAt(0)) >>> 0;
+    const letter = (Array.from(String(g.name).trim())[0] || '#').toUpperCase();
+    return `<span class="avatar-letter" style="background:hsl(${hsh % 360},55%,42%)" aria-hidden="true">${esc(letter)}</span>`;
+  }
+  function avatarHTML(g, isWa) {
+    const pic = typeof g.img === 'string' && /^\/img\/group\/[A-Za-z0-9]+\?v=\d+$/.test(g.img)
+      ? `<img class="avatar-img" src="${esc(g.img)}" alt="" width="48" height="48" loading="lazy" decoding="async">` : '';
+    return `<div class="card-icon avatar ${isWa ? 'wa' : 'tg'}">${pic || letterAvatar(g)}<span class="avatar-plat">${isWa ? ICON.wa : ICON.tg}</span></div>`;
+  }
+  // If a picture fails to load, swap in the letter avatar (inline onerror handlers are blocked by our CSP).
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.classList.contains('avatar-img')) return;
+    const card = img.closest('.card'), name = card ? card.querySelector('.card-name').textContent : '';
+    img.insertAdjacentHTML('afterend', letterAvatar({ name })); img.remove();
+  }, true);
+
   function cardHTML(g, idx) {
     const isWa = g.plat === 'wa';
     // g.link was validated server-side to be https://chat.whatsapp.com/... or https://t.me/...; check again before rendering.
     const safeLink = /^https:\/\/(chat\.whatsapp\.com|t\.me)\//.test(g.link) ? g.link : '#';
     return `<div class="card${g.featured ? ' featured' : ''}" style="animation-delay:${(idx % PAGE_SIZE) * 0.04}s">
     <div class="card-top">
-      <div class="card-icon ${isWa ? 'wa' : 'tg'}">${isWa ? ICON.wa : ICON.tg}</div>
+      ${avatarHTML(g, isWa)}
       <div class="card-info">
         <div class="card-name" title="${esc(g.name)}">${esc(g.name)}</div>
         <div class="card-meta">

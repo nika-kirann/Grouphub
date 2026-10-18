@@ -54,3 +54,7 @@ dialog h2{margin:0 0 16px}dialog form{display:grid;gap:12px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid rgba(176,106,255,.4);padding:10px 18px;border-radius:99px;font-weight:600;z-index:50}
 @media (max-width:900px){.stats{grid-template-columns:repeat(3,1fr)}.row{grid-template-columns:1fr}.actions{justify-content:flex-start;max-width:none}.tabs input{margin-left:0;max-width:none}}
 @media (max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.wrap,.topbar{padding-left:14px;padding-right:14px}}
+.row-main{display:flex;gap:14px;align-items:flex-start;min-width:0}.row-main>div{min-width:0}
+.thumb{width:56px;height:56px;border-radius:14px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.06)}
+.thumb.letter{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.3rem;color:#c9cbe0}
+.row .desc,.row .link{overflow-wrap:anywhere}
