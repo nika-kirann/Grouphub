@@ -10,8 +10,9 @@
 <body>
   <header class="topbar">
     <div class="brand"><img src="/favicon.svg" alt="" width="30" height="30"> GroupHub <span>Admin</span></div>
-    <div class="top-actions"><button class="btn ghost" id="backfillBtn" type="button" title="Fetch profile pictures for approved groups that have none">🖼 Fetch missing pictures</button><a class="btn ghost" href="/" target="_blank" rel="noopener">View site ↗</a><button class="btn ghost" id="logoutBtn" type="button">Log out</button></div>
+    <div class="top-actions"><button class="switch" id="autoToggle" type="button" role="switch" aria-checked="false" title="When ON, new submissions go live without review (Adult and spam-flagged ones still wait)"><span class="knob" aria-hidden="true"></span><span id="autoLabel">Auto-approve: OFF</span></button><button class="btn ghost" id="backfillBtn" type="button" title="Fetch profile pictures for approved groups that have none">🖼 Fetch missing pictures</button><a class="btn ghost" href="/" target="_blank" rel="noopener">View site ↗</a><button class="btn ghost" id="logoutBtn" type="button">Log out</button></div>
   </header>
+  <div class="auto-banner" id="autoBanner" role="status" hidden><span>⚡ <b>Auto-approve is ON.</b> New submissions go live immediately. Adult groups and anything the spam check flags still wait in Pending. Review them later in Approved → “Auto-approved only”.</span> <button class="btn sm" type="button" id="autoBannerOff">Turn off</button></div>
   <main class="wrap">
     <section class="stats" id="stats" aria-label="Stats"></section>
     <nav class="tabs" role="tablist" aria-label="Moderation queues">
@@ -19,6 +20,7 @@
       <button role="tab" class="tab" data-tab="approved">Approved <b data-count="approved">0</b></button>
       <button role="tab" class="tab" data-tab="reported">Reported <b data-count="reported">0</b></button>
       <button role="tab" class="tab" data-tab="rejected">Rejected <b data-count="rejected">0</b></button>
+      <label class="auto-filter" id="autoFilterWrap" hidden><input type="checkbox" id="autoOnly"> Auto-approved only</label>
       <input id="q" type="search" placeholder="Search name, description or link…" aria-label="Search">
     </nav>
     <section id="list" class="list" aria-live="polite"></section>

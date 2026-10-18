@@ -68,6 +68,7 @@ lib/validate.js      Invite-link and field validation (allow-lists)
 lib/store.js         JSON-file storage with atomic writes (fallback)
 lib/pg-store.js      PostgreSQL storage (used when DATABASE_URL is set)
 lib/seed.js          Sample groups (SEED_SAMPLES=1)
+lib/spam.js          Spam words/rules used by auto-approve (edit freely)
 lib/avatar.js        Fetches group profile pictures (allowlisted hosts only)
 test/                Unit tests (npm test) with saved sample pages
 db/schema.sql        Postgres tables (run automatically; can also be pasted into Supabase)
@@ -93,6 +94,11 @@ data/                Database (git-ignored)
 
 ## Notes and limits
 - Admin sessions and rate limits are kept in memory. That's fine for a single instance (like Render's free plan), but a restart or sleep/wake logs admins out and resets rate limits. To run more than one instance, move sessions and rate limits to Redis or Postgres.
+- **Auto-approve (admin top bar switch, default OFF):** when ON, a new submission that passes validation goes live immediately, and its picture is fetched in the background.
+  - **Exceptions:** **Adult** groups always wait in Pending. So do submissions that trip the spam check in `lib/spam.js` (editable list of words such as forex, signals, earn daily, investment, loan, betting, casino, 100% profit; links in the description; too many emojis; mostly capital letters). The Pending row shows why it was held.
+  - **Review:** auto-approved groups get an **⚡ Auto** tag. Approved → **Auto-approved only** lists them, and **✓ Mark reviewed** clears the tag.
+  - **Storage:** the setting lives in the database (Postgres `settings` table, or the JSON file), so it survives restarts.
+  - Rate limits, duplicate checks and link validation are unchanged.
 - **Group pictures:** when an admin approves a group, the server fetches the group's profile picture in the background. Approval never waits for it.
   - **Sources:** WhatsApp and Telegram pictures come from the invite page's `og:image`. Discord pictures come from the invite API (`discord.gg/…` links).
   - **Storage:** the picture is resized to a 256×256 WebP with `sharp` (an optional dependency). Without sharp, originals up to 300 KB are kept as-is. Pictures are stored in Postgres (`group_images` table) or `data/images/` (JSON store), because platform image URLs expire. They're served from `/img/group/<id>?v=<version>` with a one-year cache and an ETag.

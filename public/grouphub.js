@@ -168,9 +168,10 @@
     if (problem) { err.textContent = problem; err.hidden = false; return; }
     err.hidden = true; $('submitBtn').disabled = true;
     try {
-      await api('/api/groups', { method: 'POST', body: JSON.stringify(data) });
+      const r = await api('/api/groups', { method: 'POST', body: JSON.stringify(data) });
       f.reset(); $('descCount').textContent = '0/300'; $('adultNote').hidden = true; selectPlat('wa'); closeOverlays();
-      toast('✓ Submitted! A moderator will review your group before it appears.');
+      if (r && r.live) { toast('🎉 Your group is live!'); load(); }
+      else toast('✓ Submitted for review! A moderator will check your group before it appears.');
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
     finally { $('submitBtn').disabled = false; }
   }

@@ -25,6 +25,9 @@ alter table groups add column if not exists image_version    integer;     -- bum
 alter table groups add column if not exists image_status     text;        -- 'ok' | 'none' (platform has no picture) | 'error'
 alter table groups add column if not exists image_error      text;
 alter table groups add column if not exists image_checked_at timestamptz;
+-- Auto-approve: set when a submission went live without a moderator; hold_reason says why one was held for review.
+alter table groups add column if not exists auto_approved    boolean not null default false;
+alter table groups add column if not exists hold_reason      text;
 
 create index if not exists groups_status_created_idx on groups (status, created_at desc);
 create index if not exists groups_cat_idx on groups (cat);
@@ -48,9 +51,17 @@ create table if not exists group_images (
   updated_at   timestamptz not null default now()
 );
 
+-- Site settings (e.g. auto_approve). Small key/value table; value is JSON.
+create table if not exists settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
 -- Supabase exposes tables in the public schema through its auto-generated REST API.
 -- Turning on Row Level Security with NO policies blocks that API (anon/authenticated keys)
 -- while the GroupHub server, which connects as the database owner, keeps full access.
 alter table groups enable row level security;
 alter table reports enable row level security;
 alter table group_images enable row level security;
+alter table settings enable row level security;

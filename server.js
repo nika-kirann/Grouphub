@@ -97,6 +97,7 @@ const imgUrl = (g) => (g.imageVersion ? `/img/group/${encodeURIComponent(g.id)}?
 
 // ---------- profile pictures (fetched in the background; never blocks moderation) ----------
 const avatar = require('./lib/avatar');
+const { checkSpam } = require('./lib/spam');
 const imgQueue = [], imgQueued = new Set();
 let imgActive = 0;
 const IMG_CONCURRENCY = 2;
@@ -134,7 +135,11 @@ const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch
 // ---------- app ----------
 const app = express();
 app.disable('x-powered-by');
-if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY); // e.g. "1" behind one reverse proxy
+// TRUST_PROXY: number of proxy hops ("1" on Render), "true", or an IP/subnet list such as "loopback".
+// Env vars are strings and Express treats the string "1" as an IP address, so convert hop counts/booleans first.
+// Without this, every visitor gets the proxy's IP (shared rate limits and report de-duplication).
+function trustProxySetting(v) { if (/^\d+$/.test(v)) return parseInt(v, 10); if (v === 'true') return true; if (v === 'false') return false; return v; }
+if (process.env.TRUST_PROXY) app.set('trust proxy', trustProxySetting(process.env.TRUST_PROXY));
 
 // Strict CSP everywhere (admin, API). The public page gets a relaxed CSP so Google AdSense can load.
 const STRICT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
@@ -145,7 +150,7 @@ const PUBLIC_CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
   "img-src 'self' https: data:",
-  `connect-src 'self' https://*.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.googleadservices.com`,
+  `connect-src 'self' https://*.google.com https://*.gstatic.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.googleadservices.com`,
   `frame-src https://*.googlesyndication.com https://googleads.g.doubleclick.net https://*.doubleclick.net https://www.google.com https://*.google.com https://ep2.adtrafficquality.google https://*.adtrafficquality.google`,
   "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'", "object-src 'none'"
 ].join('; ');
@@ -215,10 +220,19 @@ app.post('/api/groups', rateLimit('submit', 10, 60 * 60e3), ah(async (req, res) 
   const v = V.validateGroup(body);
   if (!v.ok) return res.status(400).json({ error: v.errors[0], errors: v.errors });
   if (await store.findByKey(v.value.linkKey)) return res.status(409).json({ error: 'This invite link has already been submitted.' });
+  // Auto-approve (admin setting): normal submissions go live at once; Adult and anything the spam check flags wait for a moderator.
+  let status = 'pending', holdReason = null;
+  if (await store.getSetting('auto_approve', false) === true) {
+    const spam = checkSpam(v.value);
+    if (v.value.cat === V.ADULT_CATEGORY) holdReason = 'Adult category always needs review';
+    else if (spam.spam) holdReason = 'Spam check: ' + spam.reasons.join('; ');
+    else status = 'approved';
+  }
   let g;
-  try { g = await store.addGroup(Object.assign(v.value, { status: 'pending', submitter: anonId(req) })); }
+  try { g = await store.addGroup(Object.assign(v.value, { status, autoApproved: status === 'approved', holdReason, submitter: anonId(req) })); }
   catch (e) { if (e.code === '23505') return res.status(409).json({ error: 'This invite link has already been submitted.' }); throw e; } // unique race
-  res.status(201).json({ ok: true, id: g.id, status: 'pending' });
+  if (status === 'approved') queueImage(g.id); // same background picture fetch as a manual approval
+  res.status(201).json({ ok: true, id: g.id, status, live: status === 'approved' });
 }));
 
 app.post('/api/groups/:id/report', rateLimit('report', 20, 60 * 60e3), ah(async (req, res) => {
@@ -272,10 +286,20 @@ api.get('/groups', ah(async (req, res) => {
   const status = String(req.query.status || 'pending'), q = String(req.query.q || '').toLowerCase();
   const counts = await store.reportCounts();
   let list = status === 'reported' ? await store.groups((g) => counts[g.id]) : await store.groups((g) => g.status === status);
+  if (status === 'approved' && req.query.auto === '1') list = list.filter((g) => g.autoApproved);
   if (q) list = list.filter((g) => (g.name + ' ' + g.desc + ' ' + g.link).toLowerCase().includes(q));
   list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0, img: imgUrl(g) }))
     .sort((a, b) => status === 'reported' ? b.reportCount - a.reportCount : b.createdAt.localeCompare(a.createdAt));
   res.json({ groups: list });
+}));
+// Site settings. GET is read-only; PUT needs the CSRF token (enforced by requireAdmin for non-GET).
+api.get('/settings', ah(async (req, res) => res.json({ autoApprove: (await store.getSetting('auto_approve', false)) === true })));
+api.put('/settings', ah(async (req, res) => {
+  const b = req.body || {};
+  if (typeof b.autoApprove !== 'boolean') return res.status(400).json({ error: 'autoApprove must be true or false.' });
+  await store.setSetting('auto_approve', b.autoApprove);
+  console.log('[settings] auto-approve ' + (b.autoApprove ? 'ON' : 'OFF'));
+  res.json({ autoApprove: b.autoApprove });
 }));
 api.get('/groups/:id/reports', ah(async (req, res) => res.json({ reports: await store.reportsFor(req.params.id) })));
 api.patch('/groups/:id', ah(async (req, res) => {
@@ -293,6 +317,8 @@ api.patch('/groups/:id', ah(async (req, res) => {
   }
   if (b.status !== undefined) { if (!['pending', 'approved', 'rejected'].includes(b.status)) return res.status(400).json({ error: 'Bad status.' }); fields.status = b.status; }
   if (b.featured !== undefined) fields.featured = !!b.featured;
+  if (b.autoApproved === false) fields.autoApproved = false; // admin "Mark reviewed" on an auto-approved group
+  if (fields.status) fields.holdReason = null;
   if (fields.status && fields.status !== 'approved') fields.featured = false;
   const linkChanged = fields.link && fields.link !== g.link;
   if (linkChanged) await store.clearImage(g.id); // old picture belongs to the old link

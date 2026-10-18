@@ -28,7 +28,9 @@
   }
   async function loadList() {
     const q = $('q').value.trim();
-    groups = (await api('/api/admin/groups?status=' + tab + (q ? '&q=' + encodeURIComponent(q) : ''))).groups;
+    const autoOnly = tab === 'approved' && $('autoOnly').checked;
+    $('autoFilterWrap').hidden = tab !== 'approved';
+    groups = (await api('/api/admin/groups?status=' + tab + (autoOnly ? '&auto=1' : '') + (q ? '&q=' + encodeURIComponent(q) : ''))).groups;
     render();
   }
   async function refresh() { await Promise.all([loadStats(), loadList()]); }
@@ -44,6 +46,7 @@
     if (g.status !== 'approved') actions.push(B('✓ Approve', 'ok', () => act(g.id, () => patch(g.id, { status: 'approved' }), 'Approved')));
     if (g.status !== 'rejected') actions.push(B('✕ Reject', 'warn', () => act(g.id, () => patch(g.id, { status: 'rejected' }), 'Rejected')));
     if (g.status === 'approved') actions.push(B(g.featured ? '☆ Unfeature' : '★ Feature', 'gold', () => act(g.id, () => patch(g.id, { featured: !g.featured }), g.featured ? 'Unfeatured' : 'Featured')));
+    if (g.status === 'approved' && g.autoApproved) actions.push(B('✓ Mark reviewed', '', () => act(g.id, () => patch(g.id, { autoApproved: false }), 'Marked as reviewed')));
     actions.push(B('✎ Edit', '', () => openEdit(g)));
     if (g.status === 'approved') actions.push(B('🖼 Refresh picture', '', async (e) => {
       const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Fetching…';
@@ -57,7 +60,9 @@
         g.img ? h('img', { class: 'thumb', src: g.img, alt: '', width: 56, height: 56, loading: 'lazy' })
           : h('span', { class: 'thumb letter', 'aria-hidden': 'true' }, (Array.from(String(g.name).trim())[0] || '#').toUpperCase()),
         h('div', null,
-        h('h3', null, g.name, g.featured ? h('span', { class: 'pill feat' }, '★ Featured') : null, g.sample ? h('span', { class: 'pill' }, 'Sample') : null),
+        h('h3', null, g.name, g.featured ? h('span', { class: 'pill feat' }, '★ Featured') : null,
+          g.autoApproved && g.status === 'approved' ? h('span', { class: 'pill auto', title: 'Went live via auto-approve; not reviewed by a moderator yet' }, '⚡ Auto') : null,
+          g.holdReason && g.status === 'pending' ? h('span', { class: 'pill held', title: g.holdReason }, '⏸ Held: ' + g.holdReason) : null, g.sample ? h('span', { class: 'pill' }, 'Sample') : null),
         h('div', { class: 'meta' },
           h('span', { class: 'pill ' + g.plat }, g.plat === 'wa' ? 'WhatsApp' : 'Telegram'),
           h('span', { class: 'pill st-' + g.status }, g.status),
@@ -105,6 +110,20 @@
   // ----- init -----
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { tab = t.dataset.tab; loadList(); }));
   let qt; $('q').addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(loadList, 200); });
+  // ----- auto-approve toggle -----
+  function showAuto(on) {
+    const t = $('autoToggle'); t.setAttribute('aria-checked', String(on)); t.classList.toggle('on', on);
+    $('autoLabel').textContent = 'Auto-approve: ' + (on ? 'ON' : 'OFF'); $('autoBanner').hidden = !on;
+  }
+  async function setAuto(on) {
+    if (on && !confirm('Turn ON auto-approve?\n\nNew submissions will go live immediately without review. Adult groups and spam-flagged submissions will still wait in Pending.')) return;
+    $('autoToggle').disabled = true;
+    try { showAuto((await api('/api/admin/settings', { method: 'PUT', body: JSON.stringify({ autoApprove: on }) })).autoApprove); toast('Auto-approve ' + (on ? 'ON' : 'OFF')); }
+    catch (e) { toast('⚠ ' + e.message); } finally { $('autoToggle').disabled = false; }
+  }
+  $('autoToggle').addEventListener('click', () => setAuto($('autoToggle').getAttribute('aria-checked') !== 'true'));
+  $('autoBannerOff').addEventListener('click', () => setAuto(false));
+  $('autoOnly').addEventListener('change', loadList);
   $('backfillBtn').addEventListener('click', async () => {
     if (!confirm('Fetch pictures for all approved groups that don\'t have one yet? This runs in the background.')) return;
     try { const r = await api('/api/admin/images/backfill', { method: 'POST', body: JSON.stringify({ retry: true }) }); toast(r.queued ? 'Fetching ' + r.queued + ' picture(s) in the background… refresh in a minute' : 'Every approved group already has a picture (or none is available)'); }
@@ -116,6 +135,7 @@
       CSRF = (await api('/api/admin/me')).csrf;
       META = await fetch('/api/meta').then((r) => r.json());
       const f = $('editForm'); fillSelect(f.elements.cat, META.categories); fillSelect(f.elements.country, META.countries); fillSelect(f.elements.lang, META.languages);
+      showAuto((await api('/api/admin/settings')).autoApprove);
       await refresh();
     } catch (e) { toast('⚠ ' + e.message); }
   })();
