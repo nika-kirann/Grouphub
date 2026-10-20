@@ -146,9 +146,8 @@ app.disable('x-powered-by');
 function trustProxySetting(v) { if (/^\d+$/.test(v)) return parseInt(v, 10); if (v === 'true') return true; if (v === 'false') return false; return v; }
 if (process.env.TRUST_PROXY) app.set('trust proxy', trustProxySetting(process.env.TRUST_PROXY));
 
-// Strict CSP everywhere (admin, API). The public page gets a relaxed CSP so Google AdSense can load.
+// Strict CSP everywhere (admin, API). Public pages get a relaxed CSP so the Monetag tag can load.
 const STRICT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
-const ADS_HOSTS = 'https://pagead2.googlesyndication.com https://*.googlesyndication.com https://adservice.google.com https://*.google.com https://*.doubleclick.net https://*.googletagservices.com https://*.googleadservices.com https://www.googletagmanager.com https://fundingchoicesmessages.google.com https://ep1.adtrafficquality.google https://*.adtrafficquality.google';
 // Monetag OnClick tag (public pages only, loaded by /monetag.js). The tag script itself comes from one fixed host;
 // it then calls ad servers whose domains Monetag rotates (seen: 255md.com, my.rtmark.net), so connect-src allows any
 // https: origin on public pages. img-src already allows https:, so this adds no new exfiltration path. The tag compiles
@@ -156,12 +155,11 @@ const ADS_HOSTS = 'https://pagead2.googlesyndication.com https://*.googlesyndica
 const MONETAG_SCRIPT = 'https://al5sm.com';
 const PUBLIC_CSP = [
   "default-src 'self'",
-  `script-src 'self' 'wasm-unsafe-eval' ${ADS_HOSTS} ${MONETAG_SCRIPT}`,
+  `script-src 'self' 'wasm-unsafe-eval' ${MONETAG_SCRIPT}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
   "img-src 'self' https: data:",
-  `connect-src 'self' https: https://*.google.com https://*.gstatic.com https://*.googlesyndication.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.googleadservices.com`,
-  `frame-src https://*.googlesyndication.com https://googleads.g.doubleclick.net https://*.doubleclick.net https://www.google.com https://*.google.com https://ep2.adtrafficquality.google https://*.adtrafficquality.google`,
+  "connect-src 'self' https:",
   "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'", "object-src 'none'"
 ].join('; ');
 const PUBLIC_PAGES = new Set(['/', '/grouphub.html']);
