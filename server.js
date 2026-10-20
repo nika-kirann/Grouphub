@@ -177,9 +177,11 @@ const STRICT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'uns
 // The Monetag Push Notifications tag (zone 12076149) loads from a second fixed host and registers /sw.js.
 const MONETAG_SCRIPT = 'https://al5sm.com';
 const MONETAG_PUSH = 'https://5gvci.com';
+// Monetag In-Page Push (zone 12078493), loaded by /monetag-inpage.js.
+const MONETAG_INPAGE = 'https://nap5k.com';
 const PUBLIC_CSP = [
   "default-src 'self'",
-  `script-src 'self' 'wasm-unsafe-eval' ${MONETAG_SCRIPT} ${MONETAG_PUSH}`,
+  `script-src 'self' 'wasm-unsafe-eval' ${MONETAG_SCRIPT} ${MONETAG_PUSH} ${MONETAG_INPAGE}`,
   "worker-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
