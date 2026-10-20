@@ -84,7 +84,7 @@
     .nav-links a:hover { color: var(--text); background: var(--bg3); }
     .btn-add { background: var(--grad2) !important; color: #fff !important; padding: 8px 20px !important; border-radius: 99px !important; font-weight: 800 !important; box-shadow: 0 0 18px rgba(176,106,255,0.35); }
     .btn-add:hover { opacity: 0.88; }
-    .add-cta { position: relative; z-index: 1; max-width: 720px; margin: 0 auto 32px; padding: 28px 24px; text-align: center; border-radius: var(--radius); border: 1px solid rgba(176,106,255,0.28); background: linear-gradient(135deg, rgba(176,106,255,0.10), rgba(255,110,180,0.08)); }
+    .add-cta { position: relative; z-index: 1; max-width: 720px; margin: 0 auto 36px; padding: 28px 24px; text-align: center; border-radius: var(--radius); border: 1px solid rgba(176,106,255,0.28); background: linear-gradient(135deg, rgba(176,106,255,0.10), rgba(255,110,180,0.08)); }
     .add-cta h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; font-weight: 700; margin: 0 0 6px; }
     .add-cta p { color: var(--muted); font-size: 0.95rem; margin: 0 auto 18px; max-width: 460px; line-height: 1.6; }
     .btn-add-cta { display: inline-block; text-decoration: none; background: var(--grad2); color: #fff; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; padding: 13px 34px; border-radius: 99px; box-shadow: 0 4px 20px rgba(176,106,255,0.35); transition: opacity 0.2s, box-shadow 0.2s; }
@@ -330,6 +330,13 @@
   </div>
 </section>
 
+<!-- ADD GROUP CTA (above the platform tabs) -->
+<section class="add-cta" aria-labelledby="addCtaTitle">
+  <h2 id="addCtaTitle">Got a WhatsApp or Telegram group?</h2>
+  <p>List it on GroupHub for free and get new members. Every group is reviewed before it goes live.</p>
+  <a href="#add" data-action="open-add" class="btn-add-cta">✦ Add Your Group</a>
+</section>
+
 <!-- PLATFORM TABS -->
 <div class="tabs-wrap">
   <div class="tabs">
@@ -391,13 +398,6 @@
     </select>
   </div>
 </div>
-
-<!-- ADD GROUP CTA (above the group list) -->
-<section class="add-cta" aria-labelledby="addCtaTitle">
-  <h2 id="addCtaTitle">Got a WhatsApp or Telegram group?</h2>
-  <p>List it on GroupHub for free and get new members. Every group is reviewed before it goes live.</p>
-  <a href="#add" data-action="open-add" class="btn-add-cta">✦ Add Your Group</a>
-</section>
 
 <!-- GRID -->
 <section class="section">
