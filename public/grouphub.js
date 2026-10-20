@@ -1,5 +1,7 @@
 (function () {
   'use strict';
+  // Old deep links (#group/<id>) now live on their own pages; the server 301s /group/<id> to the canonical slug URL.
+  { const m = /^#group\/([a-f0-9]{6,32})$/.exec(location.hash); if (m) { location.replace('/group/' + m[1]); return; } }
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGE_SIZE = 9;
@@ -184,5 +186,5 @@
   api('/api/meta').then((m) => { $('reportReason').insertAdjacentHTML('beforeend', m.reasons.map((r) => `<option>${esc(r)}</option>`).join('')); }).catch(() => {});
   // ?q=term (used by the WebSite SearchAction in the page's structured data) pre-fills the search box.
   try { const q0 = new URLSearchParams(location.search).get('q'); if (q0) $('searchInput').value = q0.slice(0, 100); } catch (e) { /* old browser */ }
-  load();
+  load().then(() => { if (location.hash === '#add') { updateLinkHint(); openOverlay('overlay', $('groupLink')); } });
 })();

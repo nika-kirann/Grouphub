@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{TITLE}}</title>
+  <meta name="application-name" content="GROUPHUB">
+  <meta name="google-adsense-account" content="ca-pub-9358521618675902">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9358521618675902" crossorigin="anonymous"></script>
+  <meta name="description" content="{{DESCRIPTION}}">
+  {{ROBOTS}}
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#0a0b1a">
+  {{CANONICAL}}
+  {{SOCIAL}}
+  {{JSONLD}}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>{{STYLE}}
+    /* ---- group page ---- */
+    .gp-wrap { position: relative; z-index: 1; max-width: 920px; margin: 0 auto; padding: 26px 24px 8px; }
+    .crumbs { font-size: 0.8rem; color: var(--muted); margin-bottom: 18px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .crumbs a { color: #d4a8ff; text-decoration: none; font-weight: 700; }
+    .crumbs span[aria-current] { color: var(--text); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60vw; }
+    .gp-card { background: var(--surface); border: 1px solid rgba(176,106,255,0.18); border-radius: 22px; padding: 28px; }
+    .gp-head { display: flex; gap: 20px; align-items: center; margin-bottom: 20px; }
+    .gp-avatar, .gp-avatar.card-icon { position: relative; flex-shrink: 0; width: auto; height: auto; background: none; }
+    .gp-avatar img, .gp-avatar .avatar-letter { width: 104px; height: 104px; border-radius: 26px; object-fit: cover; font-size: 2.6rem; }
+    .gp-avatar .avatar-plat { width: 32px; height: 32px; right: -6px; bottom: -6px; }
+    .gp-avatar .avatar-plat svg { width: 24px; height: 24px; }
+    .gp-head h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.35rem, 3.6vw, 2rem); line-height: 1.2; margin-bottom: 8px; overflow-wrap: anywhere; }
+    .gp-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .gp-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 4px 0 20px; }
+    .gp-fact { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
+    .gp-fact dt { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .gp-fact dd { font-size: 0.95rem; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+    .gp-desc { font-size: 0.98rem; line-height: 1.75; color: #d6d8ef; margin-bottom: 20px; white-space: pre-line; overflow-wrap: anywhere; }
+    .gp-desc.muted { color: var(--muted); font-style: italic; }
+    .gp-safety { background: rgba(255,211,110,0.07); border: 1px solid rgba(255,211,110,0.28); color: #f2deb0; border-radius: 14px; padding: 14px 16px; font-size: 0.86rem; line-height: 1.6; margin-bottom: 22px; }
+    .gp-safety b { color: #ffd36e; }
+    .gp-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .gp-join { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 15px 30px; border-radius: 99px; font-family: 'Nunito', sans-serif; font-size: 1.05rem; font-weight: 900; text-decoration: none; color: #fff; flex: 1 1 260px; max-width: 420px; transition: transform 0.15s, box-shadow 0.2s; }
+    .gp-join svg { width: 22px; height: 22px; }
+    .gp-join.wa { background: #1fa855; box-shadow: 0 6px 24px rgba(37,211,102,0.3); }
+    .gp-join.tg { background: #1d8fd1; box-shadow: 0 6px 24px rgba(42,171,238,0.3); }
+    .gp-join svg path { fill: #fff; }
+    .gp-join:hover { transform: translateY(-1px); }
+    .gp-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid rgba(176,106,255,0.22); color: var(--text); font: 700 0.86rem 'Nunito', sans-serif; padding: 11px 16px; border-radius: 99px; cursor: pointer; text-decoration: none; }
+    .gp-btn:hover { border-color: rgba(176,106,255,0.5); }
+    .gp-sample { margin-top: 14px; font-size: 0.82rem; color: var(--muted); }
+    .gp-similar { position: relative; z-index: 1; max-width: 1100px; margin: 44px auto 0; padding: 0 24px 56px; }
+    .gp-back-row { text-align: center; margin-top: 22px; }
+    .gp-404 { text-align: center; padding: 70px 24px 90px; position: relative; z-index: 1; }
+    .gp-404 h1 { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; margin-bottom: 10px; }
+    .gp-404 p { color: var(--muted); margin-bottom: 24px; }
+    .adult-locked .gp-wrap, .adult-locked .gp-similar { filter: blur(16px); pointer-events: none; user-select: none; }
+    @media (max-width: 600px) {
+      .gp-actions .gp-btn { flex: 1; justify-content: center; }
+      .gp-wrap { padding: 18px 14px 4px; }
+      .gp-card { padding: 20px 16px; border-radius: 18px; }
+      .gp-head { gap: 14px; }
+      .gp-avatar img, .gp-avatar .avatar-letter { width: 76px; height: 76px; border-radius: 20px; font-size: 2rem; }
+      .gp-join { max-width: none; flex-basis: 100%; }
+      .gp-similar { padding: 0 16px 48px; }
+    }
+  </style>
+</head>
+<body{{BODY_CLASS}}>
+<div class="watermark">© KiranXer</div>
+{{NAV}}
+{{MAIN}}
+{{OVERLAYS}}
+{{FOOTER}}
+<div class="toast" id="toast" role="status"></div>
+<script src="/group.js" defer></script>
+</body>
+</html>

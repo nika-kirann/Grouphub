@@ -48,6 +48,7 @@
     if (g.status === 'approved') actions.push(B(g.featured ? '☆ Unfeature' : '★ Feature', 'gold', () => act(g.id, () => patch(g.id, { featured: !g.featured }), g.featured ? 'Unfeatured' : 'Featured')));
     if (g.status === 'approved' && g.autoApproved) actions.push(B('✓ Mark reviewed', '', () => act(g.id, () => patch(g.id, { autoApproved: false }), 'Marked as reviewed')));
     actions.push(B('✎ Edit', '', () => openEdit(g)));
+    if (g.status === 'approved' && typeof g.page === 'string' && g.page.startsWith('/group/')) actions.push(h('a', { class: 'btn sm', href: g.page, target: '_blank', rel: 'noopener' }, '↗ View page'));
     if (g.status === 'approved') actions.push(B('🖼 Refresh picture', '', async (e) => {
       const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Fetching…';
       try { const r = await api('/api/admin/groups/' + encodeURIComponent(g.id) + '/refresh-image', { method: 'POST' }); toast(r.ok ? 'Picture updated' : 'No picture: ' + (r.imageError || r.imageStatus)); await loadList(); }

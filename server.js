@@ -43,7 +43,7 @@ const store = process.env.DATABASE_URL
 // Any change to groups clears the cached server-rendered homepage.
 ['addGroup', 'updateGroup', 'deleteGroup', 'setImage', 'clearImage'].forEach((m) => {
   const orig = store[m].bind(store);
-  store[m] = async (...args) => { const r = await orig(...args); homeCache = null; return r; };
+  store[m] = async (...args) => { const r = await orig(...args); homeCache = null; sitemapCache = null; pageCache.clear(); return r; };
 });
 
 // ---------- helpers ----------
@@ -163,7 +163,7 @@ const PUBLIC_PAGES = new Set(['/', '/grouphub.html']);
 
 app.use((req, res, next) => {
   res.set({
-    'Content-Security-Policy': PUBLIC_PAGES.has(req.path) ? PUBLIC_CSP : STRICT_CSP,
+    'Content-Security-Policy': PUBLIC_PAGES.has(req.path) || req.path.startsWith('/group/') ? PUBLIC_CSP : STRICT_CSP,
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -187,6 +187,7 @@ app.use(express.json({ limit: '10kb' }));
 // Only the public/ folder is web-accessible (NOT the project root, server code or node_modules).
 // Homepage: server-rendered first page + crawlable index (cached briefly; any write clears the cache).
 const render = require('./lib/render');
+const Card = require('./public/card-render.js');
 let homeCache = null; // { html, at }
 const HOME_TTL_MS = 60e3;
 app.get('/', ah(async (req, res) => {
@@ -197,9 +198,39 @@ app.get('/', ah(async (req, res) => {
   res.set('Cache-Control', 'no-cache').type('html').send(homeCache.html);
 }));
 app.get('/grouphub.html', (req, res) => res.redirect(301, '/')); // one canonical URL for the homepage
+
+// Group pages: /group/<slug>-<id>. Only approved groups; wrong/old slugs 301 to the canonical URL.
+const pageCache = new Map(); // id -> { html, at }
+let sitemapCache = null;
+const SIMILAR_MAX = 6;
+function notFound(res) { res.status(404).set('Cache-Control', 'no-cache').type('html').send(render.render404()); }
+app.get('/group/:param', ah(async (req, res) => {
+  const id = render.parseGroupParam(req.params.param);
+  if (!id) return notFound(res);
+  const g = await store.group(id);
+  if (!g || g.status !== 'approved') return notFound(res);
+  const canonical = Card.groupPath(g);
+  if ('/group/' + req.params.param !== canonical) return res.redirect(301, canonical);
+  let hit = pageCache.get(id);
+  if (!hit || Date.now() - hit.at > HOME_TTL_MS) {
+    const pub = Object.assign(publicGroup(g), { updatedAt: g.updatedAt });
+    // Similar: same category first, then same platform; never Adult, never the group itself.
+    const others = render.publicList((await store.groups((x) => x.status === 'approved' && x.id !== g.id)).map(publicGroup));
+    const same = others.filter((x) => x.cat === g.cat);
+    const similar = same.concat(others.filter((x) => x.cat !== g.cat && x.plat === g.plat)).slice(0, SIMILAR_MAX);
+    hit = { html: render.renderGroupPage(pub, similar), at: Date.now() };
+    if (pageCache.size > 2000) pageCache.clear();
+    pageCache.set(id, hit);
+  }
+  res.set('Cache-Control', 'no-cache').type('html').send(hit.html);
+}));
+app.get('/group', (req, res) => res.redirect(301, '/'));
 app.get('/sitemap.xml', ah(async (req, res) => {
-  const list = await store.groups((g) => g.status === 'approved');
-  res.set('Cache-Control', 'public, max-age=3600').type('application/xml').send(render.renderSitemap(list));
+  // Cached like the homepage (60s) and dropped on every write.
+  if (!sitemapCache || Date.now() - sitemapCache.at > HOME_TTL_MS) {
+    sitemapCache = { xml: render.renderSitemap(await store.groups((g) => g.status === 'approved')), at: Date.now() };
+  }
+  res.set('Cache-Control', 'public, max-age=600').type('application/xml').send(sitemapCache.xml);
 }));
 app.use(express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'deny' }));
 
@@ -308,7 +339,7 @@ api.get('/groups', ah(async (req, res) => {
   let list = status === 'reported' ? await store.groups((g) => counts[g.id]) : await store.groups((g) => g.status === status);
   if (status === 'approved' && req.query.auto === '1') list = list.filter((g) => g.autoApproved);
   if (q) list = list.filter((g) => (g.name + ' ' + g.desc + ' ' + g.link).toLowerCase().includes(q));
-  list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0, img: imgUrl(g) }))
+  list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0, img: imgUrl(g), page: g.status === 'approved' ? Card.groupPath(g) : null }))
     .sort((a, b) => status === 'reported' ? b.reportCount - a.reportCount : b.createdAt.localeCompare(a.createdAt));
   res.json({ groups: list });
 }));

@@ -69,14 +69,15 @@ lib/store.js         JSON-file storage with atomic writes (fallback)
 lib/pg-store.js      PostgreSQL storage (used when DATABASE_URL is set)
 lib/seed.js          Sample groups (SEED_SAMPLES=1)
 lib/spam.js          Spam words/rules used by auto-approve (edit freely)
-lib/render.js        Server-side homepage render + sitemap.xml
+lib/render.js        Server-side homepage, group pages, 404 + sitemap.xml
+views/group.html     Group page template (header/footer/styles come from public/grouphub.html)
 public/card-render.js Card markup shared by server and browser
 lib/avatar.js        Fetches group profile pictures (allowlisted hosts only)
 test/                Unit tests (npm test) with saved sample pages
 db/schema.sql        Postgres tables (run automatically; can also be pasted into Supabase)
 render.yaml          Render Blueprint
 lib/hash-password.js Helper for ADMIN_PASSWORD_HASH
-public/              Public site (grouphub.html, grouphub.js, favicon.svg)
+public/              Public site (grouphub.html, grouphub.js, group.js, favicon.svg)
 admin/views/         Login and dashboard pages (served only by /admin)
 admin/assets/        Admin CSS/JS
 data/                Database (git-ignored)
@@ -113,7 +114,8 @@ data/                Database (git-ignored)
   - **Limitations:** WhatsApp only shows the picture for valid invites of groups that have one. Revoked invites and many Community invites show a generic image, which we skip. Telegram shows nothing for private or invalid invites, and its default logo is skipped. Platforms can change their pages or rate-limit at any time.
 - **SEO:**
   - **Server-rendered homepage:** `GET /` is rendered on the server (`lib/render.js`) with the first page of WhatsApp cards, the hero stats and a "Recently added" list of up to 60 real approved groups (no Adult, no samples). All of it is escaped HTML, so crawlers see content without running JS; the browser JS then takes over with the same card markup (`public/card-render.js`). The page is cached for 60 s and the cache is cleared on any group change.
-  - **Other files:** `/sitemap.xml` lists the homepage with `lastmod` set to the latest approved-group update. `/robots.txt` blocks `/admin` and `/api/`.
+  - **Group pages:** every approved group has its own page at `/group/<slug>-<id>` (slug from the name, id is stable). Wrong or old slugs (for example after a rename) 301 to the current URL; `/group/<id>` works too. Pending, rejected and unknown groups get a 404 page. Each page has its own title, description, canonical, Open Graph image (the group picture when there is one) and a BreadcrumbList. Adult groups get `noindex` and the 18+ gate; sample groups get `noindex`. Homepage card titles and **Join** buttons link to these pages, and old `/#group/<id>` links redirect to them. Admin rows have **↗ View page**. Pages are cached for 60 s and cleared on any change. Ads: the page only loads the AdSense script (Auto ads); there are no manual ad units and nothing delays the Join button.
+  - **Other files:** `/sitemap.xml` lists the homepage plus every approved, non-Adult, non-sample group page with `lastmod`. It is cached for 60 s and cleared on any change. `/robots.txt` blocks `/admin` and `/api/`.
   - **Structured data:** JSON-LD for WebSite (with a `?q=` SearchAction, which the page supports) and Organization (opaque logo `icon-512.png`).
   - **Redirect:** `/grouphub.html` 301-redirects to `/`.
 - **Google AdSense:** the AdSense script and `google-adsense-account` meta tag are in the `<head>` of `public/grouphub.html` (served at `/`), and `public/ads.txt` is served at `/ads.txt`. Only the public page (`/`, `/grouphub.html`) gets a CSP that allows Google's ad domains; admin pages and the API keep the strict CSP.
