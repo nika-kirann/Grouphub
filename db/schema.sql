@@ -58,6 +58,28 @@ create table if not exists settings (
   updated_at timestamptz not null default now()
 );
 
+-- Traffic stats (first-party; see lib/analytics.js). No raw IPs or visitor IDs are stored.
+-- One row per day with the totals (kept forever, tiny).
+create table if not exists stats_daily (
+  day          date primary key,
+  pageviews    integer not null default 0,
+  visitors     integer not null default 0,       -- unique visitors that day
+  new_visitors integer not null default 0        -- first-ever visits; their sum is the all-time unique visitor count
+);
+-- Daily-rotating salted visitor hashes, only used to count each visitor once per day. Pruned after 90 days.
+create table if not exists stats_visitors (
+  day   date not null,
+  vhash text not null,
+  primary key (day, vhash)
+);
+-- Views per page per day ('home' or 'g:<group id>'). Pruned after 90 days.
+create table if not exists stats_pages (
+  day   date not null,
+  page  text not null,
+  views integer not null default 0,
+  primary key (day, page)
+);
+
 -- Supabase exposes tables in the public schema through its auto-generated REST API.
 -- Turning on Row Level Security with NO policies blocks that API (anon/authenticated keys)
 -- while the GroupHub server, which connects as the database owner, keeps full access.
@@ -65,3 +87,6 @@ alter table groups enable row level security;
 alter table reports enable row level security;
 alter table group_images enable row level security;
 alter table settings enable row level security;
+alter table stats_daily enable row level security;
+alter table stats_visitors enable row level security;
+alter table stats_pages enable row level security;

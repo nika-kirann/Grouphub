@@ -108,6 +108,49 @@
     catch (ex) { $('editError').textContent = ex.message; $('editError').hidden = false; }
   });
 
+
+  // ----- traffic -----
+  const fmt = (n) => Number(n || 0).toLocaleString();
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs, text) { const el = document.createElementNS(SVGNS, tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); if (text != null) el.textContent = text; return el; }
+  function chart(days) {
+    const W = Math.max(300, Math.round($('chart').clientWidth || 600)), H = 180, P = { l: 30, r: 6, t: 8, b: 20 }, n = days.length;
+    const max = Math.max(1, ...days.map((d) => d.pageviews), ...days.map((d) => d.visitors));
+    const step = (W - P.l - P.r) / n, bw = Math.max(2, step * 0.7), y = (v) => H - P.b - (v / max) * (H - P.t - P.b);
+    const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Daily visitors and page views, last 30 days' });
+    [0, 0.5, 1].forEach((f) => { const v = Math.round(max * f); s.append(svg('line', { class: 'grid', x1: P.l, x2: W - P.r, y1: y(v), y2: y(v) }), svg('text', { class: 'axis', x: P.l - 4, y: y(v) + 3, 'text-anchor': 'end' }, fmt(v))); });
+    days.forEach((d, i) => {
+      const x = P.l + i * step + (step - bw) / 2;
+      const g = svg('g', {});
+      g.append(svg('title', {}, `${d.day}: ${fmt(d.visitors)} visitors, ${fmt(d.pageviews)} page views`));
+      g.append(svg('rect', { class: 'bar-p', x, width: bw, y: y(d.pageviews), height: Math.max(0, H - P.b - y(d.pageviews)), rx: 1.5 }));
+      g.append(svg('rect', { class: 'bar-v', x: x + bw * 0.2, width: bw * 0.6, y: y(d.visitors), height: Math.max(0, H - P.b - y(d.visitors)), rx: 1.5 }));
+      s.append(g);
+      if (i % 5 === 0 || i === n - 1) s.append(svg('text', { class: 'axis', x: i === n - 1 ? W - P.r : x + bw / 2, y: H - 6, 'text-anchor': i === n - 1 ? 'end' : 'middle' }, d.day.slice(5)));
+    });
+    $('chart').replaceChildren(s);
+  }
+  function tops(id, list) {
+    $(id).replaceChildren(...(list.length ? list.map((r) => h('li', null, r.url ? h('a', { href: r.url, target: '_blank', rel: 'noopener' }, r.name) : r.name, h('span', null, fmt(r.views)))) : [h('li', { class: 'muted' }, 'No views yet')]));
+  }
+  async function loadTraffic() {
+    const t = await api('/api/admin/traffic');
+    $('onlineNow').textContent = fmt(t.onlineNow);
+    const card = (title, big, bigLabel, sub) => h('div', { class: 'tcard' }, h('h4', null, title), h('div', { class: 'big' }, fmt(big), h('span', { class: 'sub' }, ' ' + bigLabel)), h('div', { class: 'sub' }, sub));
+    $('tcards').replaceChildren(
+      card('Today', t.todayStats.visitors, 'visitors', fmt(t.todayStats.pageviews) + ' page views'),
+      card('Last 7 days', t.last7.visitors, 'visits', fmt(t.last7.pageviews) + ' page views · ' + fmt(t.last7.newVisitors) + ' new visitors'),
+      card('Last 30 days', t.last30.visitors, 'visits', fmt(t.last30.pageviews) + ' page views · ' + fmt(t.last30.newVisitors) + ' new visitors'),
+      card('All time', t.allTime.visitors, 'visitors', fmt(t.allTime.pageviews) + ' page views'));
+    lastDays = t.days; chart(t.days); tops('topToday', t.topToday); tops('top7', t.top7);
+    $('trafficNote').textContent = `Counting started on ${t.startedDay} (when traffic stats were added), so earlier visits aren't included. ` +
+      `Days run midnight to midnight ${t.tz} time. A visitor is counted once per day; 7/30-day "visits" add up the daily visitors, so someone who comes on 3 days counts 3 times. ` +
+      `All-time visitors = distinct browsers seen since counting started. Bots, the admin panel and UptimeRobot pings are not counted. Online now = visitors active in the last ${t.onlineWindowMin} minutes (resets if the server restarts).`;
+  }
+  let lastDays = null, rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (lastDays) chart(lastDays); }, 150); });
+  async function loadOnline() { $('onlineNow').textContent = fmt((await api('/api/admin/traffic/online')).onlineNow); }
+  setInterval(() => { if (document.visibilityState === 'visible') loadOnline().catch(() => {}); }, 15000);
+  setInterval(() => { if (document.visibilityState === 'visible') loadTraffic().catch(() => {}); }, 120000);
   // ----- init -----
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { tab = t.dataset.tab; loadList(); }));
   let qt; $('q').addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(loadList, 200); });
@@ -137,6 +180,7 @@
       META = await fetch('/api/meta').then((r) => r.json());
       const f = $('editForm'); fillSelect(f.elements.cat, META.categories); fillSelect(f.elements.country, META.countries); fillSelect(f.elements.lang, META.languages);
       showAuto((await api('/api/admin/settings')).autoApprove);
+      loadTraffic().catch((e) => toast('⚠ Traffic: ' + e.message));
       await refresh();
     } catch (e) { toast('⚠ ' + e.message); }
   })();

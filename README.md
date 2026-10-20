@@ -59,7 +59,15 @@ Use `npm run dev` to auto-restart while editing.
 | `DATABASE_POOL_MAX` | `5` | Max Postgres connections |
 | `DB_FILE` | `data/grouphub.json` | JSON database file (used only when `DATABASE_URL` is unset) |
 | `SEED_SAMPLES` | – | `1` = insert 15 sample groups if the database is empty |
+| `STATS_TZ` | `Asia/Kolkata` | Time zone for the daily traffic stats in the admin panel |
 | `IP_HASH_SALT` | random per start | Salt for hashing submitter/reporter IPs; set it so report de-duplication survives restarts |
+
+## Traffic stats (admin → Traffic)
+First-party and privacy-friendly: no cookies, no third-party analytics. `public/beacon.js` (homepage and group pages only) sends one page view per load to `POST /api/collect`, plus a heartbeat every 60s while the tab is visible.
+- **Not counted:** `/admin`, `/api`, static files, `/healthz` (UptimeRobot), `robots.txt`, `sitemap.xml`, `sw.js`, 404 pages, bots (by user-agent) and automated browsers.
+- **Visitors:** the browser keeps a random ID in localStorage, or the server falls back to IP + user-agent if storage is blocked. Only a salted HMAC of that ID is stored, and the salt rotates daily, so raw IPs and IDs are never saved. Each visitor counts once per day. All-time visitors = first-ever visits.
+- **Online now:** distinct visitors seen in the last 5 minutes. Kept in memory only, so it resets on restart.
+- **Storage:** hits are buffered and flushed about once a minute (and on shutdown) into `stats_daily`, `stats_visitors` and `stats_pages`. Per-day hashes and page counts are pruned after 90 days; daily totals are kept.
 
 ## Project layout
 ```

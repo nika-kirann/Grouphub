@@ -17,6 +17,16 @@
   </header>
   <div class="auto-banner" id="autoBanner" role="status" hidden><span>⚡ <b>Auto-approve is ON.</b> New submissions go live immediately. Adult groups and anything the spam check flags still wait in Pending. Review them later in Approved → “Auto-approved only”.</span> <button class="btn sm" type="button" id="autoBannerOff">Turn off</button></div>
   <main class="wrap">
+    <section class="traffic" id="traffic" aria-labelledby="trafficTitle">
+      <div class="traffic-head">
+        <h2 id="trafficTitle">📈 Traffic</h2>
+        <div class="online" title="Distinct visitors with the site open in the last 5 minutes"><span class="dot" aria-hidden="true"></span><b id="onlineNow">–</b> online now</div>
+      </div>
+      <div class="tcards" id="tcards"></div>
+      <div class="chart-wrap"><div class="chart-head"><span>Last 30 days</span><span class="legend"><i class="lg-v"></i>Visitors <i class="lg-p"></i>Page views</span></div><div id="chart" class="chart"></div></div>
+      <div class="tops"><div><h3>Top pages today</h3><ol id="topToday"></ol></div><div><h3>Top pages · 7 days</h3><ol id="top7"></ol></div></div>
+      <p class="muted small" id="trafficNote"></p>
+    </section>
     <section class="stats" id="stats" aria-label="Stats"></section>
     <nav class="tabs" role="tablist" aria-label="Moderation queues">
       <button role="tab" class="tab" data-tab="pending">Pending <b data-count="pending">0</b></button>

@@ -44,8 +44,29 @@ const store = process.env.DATABASE_URL
 // Any change to groups clears the cached server-rendered homepage.
 ['addGroup', 'updateGroup', 'deleteGroup', 'setImage', 'clearImage'].forEach((m) => {
   const orig = store[m].bind(store);
-  store[m] = async (...args) => { const r = await orig(...args); homeCache = null; sitemapCache = null; pageCache.clear(); return r; };
+  store[m] = async (...args) => { const r = await orig(...args); homeCache = null; sitemapCache = null; approvedIdsCache = null; pageCache.clear(); return r; };
 });
+
+// ---------- traffic stats (first-party; see lib/analytics.js) ----------
+const { Analytics } = require('./lib/analytics');
+let approvedIdsCache = null; // { ids: Set, at }
+async function approvedIds() {
+  if (!approvedIdsCache || Date.now() - approvedIdsCache.at > 60e3) {
+    approvedIdsCache = { ids: new Set((await store.groups((g) => g.status === 'approved')).map((g) => g.id)), at: Date.now() };
+  }
+  return approvedIdsCache.ids;
+}
+// Only the homepage and approved group pages count. Everything else (admin, API, assets, /healthz, robots, sitemap, sw.js, 404s) doesn't.
+async function pageKey(p) {
+  if (p === '/') return 'home';
+  const m = /^\/group\/([^/]{1,200})$/.exec(p);
+  if (!m) return null;
+  let raw; try { raw = decodeURIComponent(m[1]); } catch (e) { return null; }
+  const id = render.parseGroupParam(raw);
+  return id && (await approvedIds()).has(id) ? 'g:' + id : null;
+}
+const analytics = new Analytics({ store, pageKey, tz: process.env.STATS_TZ || 'Asia/Kolkata' });
+setInterval(() => analytics.flush().catch(() => {}), 60e3).unref();
 
 // ---------- helpers ----------
 function clientIp(req) { return req.ip || req.socket.remoteAddress || 'unknown'; }
@@ -269,6 +290,14 @@ app.get('/img/group/:id', ah(async (req, res) => {
   res.type(img.type).send(img.data);
 }));
 
+// Traffic beacon from /beacon.js (public pages). Always 204; bots, unknown pages and bad bodies are silently ignored.
+app.post('/api/collect', rateLimit('collect', 60, 60e3), (req, res) => {
+  const b = req.body || {};
+  analytics.hit({ type: b.t, path: typeof b.p === 'string' ? b.p.slice(0, 300) : '', vid: b.v, isNew: b.n === 1, ip: clientIp(req), ua: String(req.get('User-Agent') || '').slice(0, 400) })
+    .catch((e) => console.error('[stats] hit failed:', e.message));
+  res.set('Cache-Control', 'no-store').status(204).end();
+});
+
 app.get('/api/meta', (req, res) => res.json({ adultCategory: V.ADULT_CATEGORY, categories: V.CATEGORIES, countries: V.COUNTRIES, languages: V.LANGUAGES, reasons: V.REPORT_REASONS }));
 
 // Adult groups are only returned when explicitly requested (?includeAdult=1), after the client-side 18+ gate.
@@ -348,6 +377,20 @@ api.get('/stats', ah(async (req, res) => {
     featured: all.filter((g) => g.featured && g.status === 'approved').length,
     submittedThisWeek: all.filter((g) => Date.parse(g.createdAt) > week && !g.sample).length, total: all.length });
 }));
+// Traffic panel. Group pages are returned with their name and URL.
+api.get('/traffic', ah(async (req, res) => {
+  const t = await analytics.summary();
+  const ids = new Set([...t.topToday, ...t.top7].filter((r) => r.page.startsWith('g:')).map((r) => r.page.slice(2)));
+  const byId = new Map((await store.groups((g) => ids.has(g.id))).map((g) => [g.id, g]));
+  const label = (r) => {
+    if (r.page === 'home') return { views: r.views, name: 'Homepage', url: '/' };
+    const g = byId.get(r.page.slice(2));
+    return { views: r.views, name: g ? g.name : '(deleted group)', url: g && g.status === 'approved' ? Card.groupPath(g) : null };
+  };
+  t.topToday = t.topToday.map(label); t.top7 = t.top7.map(label);
+  res.json(t);
+}));
+api.get('/traffic/online', (req, res) => res.json({ onlineNow: analytics.onlineNow() }));
 api.get('/groups', ah(async (req, res) => {
   const status = String(req.query.status || 'pending'), q = String(req.query.q || '').toLowerCase();
   const counts = await store.reportCounts();
@@ -421,11 +464,12 @@ app.use((err, req, res, next) => {
 (async function start() {
   try {
     await store.init({ seed: process.env.SEED_SAMPLES === '1' ? sampleGroups() : null });
+    await analytics.init();
   } catch (e) {
     console.error('[db] Failed to initialise ' + store.kind + ' storage:', e.message);
     process.exit(1);
   }
   const server = app.listen(PORT, () => console.log(`GroupHub running on http://localhost:${PORT}  (storage: ${store.kind}, admin: /admin)`));
-  const shutdown = () => { server.close(() => store.close().finally(() => process.exit(0))); setTimeout(() => process.exit(0), 5000).unref(); };
+  const shutdown = () => { server.close(() => analytics.flush().catch(() => {}).then(() => store.close()).finally(() => process.exit(0))); setTimeout(() => process.exit(0), 5000).unref(); };
   process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 })();
