@@ -1,6 +1,7 @@
 'use strict';
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const JsonStore = require('./lib/store');
 const { sampleGroups } = require('./lib/seed');
@@ -152,10 +153,13 @@ const STRICT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'uns
 // it then calls ad servers whose domains Monetag rotates (seen: 255md.com, my.rtmark.net), so connect-src allows any
 // https: origin on public pages. img-src already allows https:, so this adds no new exfiltration path. The tag compiles
 // WebAssembly, which needs 'wasm-unsafe-eval' (WebAssembly only; JS eval and inline scripts stay blocked).
+// The Monetag Push Notifications tag (zone 12076149) loads from a second fixed host and registers /sw.js.
 const MONETAG_SCRIPT = 'https://al5sm.com';
+const MONETAG_PUSH = 'https://5gvci.com';
 const PUBLIC_CSP = [
   "default-src 'self'",
-  `script-src 'self' 'wasm-unsafe-eval' ${MONETAG_SCRIPT}`,
+  `script-src 'self' 'wasm-unsafe-eval' ${MONETAG_SCRIPT} ${MONETAG_PUSH}`,
+  "worker-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
   "img-src 'self' https: data:",
@@ -235,6 +239,14 @@ app.get('/sitemap.xml', ah(async (req, res) => {
   }
   res.set('Cache-Control', 'public, max-age=600').type('application/xml').send(sitemapCache.xml);
 }));
+// Monetag push service worker. Must live at the site root (scope /). It importScripts() Monetag's worker code from
+// 5gvci.com, which may pull further code/endpoints from rotating ad domains, so it gets no CSP (a page CSP doesn't apply
+// to workers anyway; only the worker response's own header does). Not cached long so zone changes roll out quickly.
+const SW_JS = fs.readFileSync(path.join(__dirname, 'public', 'sw.js'), 'utf8');
+app.get('/sw.js', (req, res) => {
+  res.removeHeader('Content-Security-Policy');
+  res.set('Cache-Control', 'no-cache').type('application/javascript').send(SW_JS);
+});
 app.use(express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'deny' }));
 
 // ----- public API -----
