@@ -84,12 +84,12 @@
     .nav-links a:hover { color: var(--text); background: var(--bg3); }
     .btn-add { background: var(--grad2) !important; color: #fff !important; padding: 8px 20px !important; border-radius: 99px !important; font-weight: 800 !important; box-shadow: 0 0 18px rgba(176,106,255,0.35); }
     .btn-add:hover { opacity: 0.88; }
-    .add-cta { position: relative; z-index: 1; max-width: 720px; margin: 8px auto 56px; padding: 28px 24px; text-align: center; border-radius: var(--radius); border: 1px solid rgba(176,106,255,0.28); background: linear-gradient(135deg, rgba(176,106,255,0.10), rgba(255,110,180,0.08)); }
+    .add-cta { position: relative; z-index: 1; max-width: 720px; margin: 0 auto 32px; padding: 28px 24px; text-align: center; border-radius: var(--radius); border: 1px solid rgba(176,106,255,0.28); background: linear-gradient(135deg, rgba(176,106,255,0.10), rgba(255,110,180,0.08)); }
     .add-cta h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; font-weight: 700; margin: 0 0 6px; }
     .add-cta p { color: var(--muted); font-size: 0.95rem; margin: 0 auto 18px; max-width: 460px; line-height: 1.6; }
     .btn-add-cta { display: inline-block; text-decoration: none; background: var(--grad2); color: #fff; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; padding: 13px 34px; border-radius: 99px; box-shadow: 0 4px 20px rgba(176,106,255,0.35); transition: opacity 0.2s, box-shadow 0.2s; }
     .btn-add-cta:hover { opacity: 0.88; box-shadow: 0 6px 28px rgba(255,110,180,0.38); }
-    @media (max-width: 600px) { .add-cta { margin: 4px 16px 40px; padding: 22px 16px; } .btn-add-cta { display: block; width: 100%; padding: 14px 20px; } }
+    @media (max-width: 600px) { .add-cta { margin: 0 16px 28px; padding: 22px 16px; } .btn-add-cta { display: block; width: 100%; padding: 14px 20px; } }
 
     /* MASCOT */
     .mascot-wrap { position: fixed; bottom: 44px; left: 16px; z-index: 50; display: flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none; }
@@ -392,6 +392,13 @@
   </div>
 </div>
 
+<!-- ADD GROUP CTA (above the group list) -->
+<section class="add-cta" aria-labelledby="addCtaTitle">
+  <h2 id="addCtaTitle">Got a WhatsApp or Telegram group?</h2>
+  <p>List it on GroupHub for free and get new members. Every group is reviewed before it goes live.</p>
+  <a href="#add" data-action="open-add" class="btn-add-cta">✦ Add Your Group</a>
+</section>
+
 <!-- GRID -->
 <section class="section">
   <div class="section-title" id="gridLabel"><!--SSR:GRID_LABEL--></div>
@@ -399,13 +406,6 @@
   <div class="load-more-wrap" id="loadMoreWrap"<!--SSR:LOADMORE_STYLE-->>
     <button class="btn-load" type="button" data-action="load-more">Load more groups ↓</button>
   </div>
-</section>
-
-<!-- ADD GROUP CTA (mid-page) -->
-<section class="add-cta" aria-labelledby="addCtaTitle">
-  <h2 id="addCtaTitle">Got a WhatsApp or Telegram group?</h2>
-  <p>List it on GroupHub for free and get new members. Every group is reviewed before it goes live.</p>
-  <a href="#add" data-action="open-add" class="btn-add-cta">✦ Add Your Group</a>
 </section>
 
 <!--SSR:INDEX-->
