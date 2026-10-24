@@ -22,7 +22,7 @@
 
   async function loadStats() {
     const s = await api('/api/admin/stats');
-    const cards = [['Pending review', s.pending, s.pending ? 'hl' : ''], ['Approved', s.approved], ['Featured', s.featured], ['Reported groups', s.reported, s.reported ? 'alert' : ''], ['Open reports', s.openReports, s.openReports ? 'alert' : ''], ['New this week', s.submittedThisWeek]];
+    const cards = [['Pending review', s.pending, s.pending ? 'hl' : ''], ['Approved', s.approved], ['Reported groups', s.reported, s.reported ? 'alert' : ''], ['Open reports', s.openReports, s.openReports ? 'alert' : ''], ['New this week', s.submittedThisWeek]];
     $('stats').replaceChildren(...cards.map(([l, v, c]) => h('div', { class: 'stat ' + (c || '') }, h('b', null, v), h('span', null, l))));
     ['pending', 'approved', 'reported', 'rejected'].forEach((k) => { document.querySelector(`[data-count="${k}"]`).textContent = s[k]; });
   }
@@ -45,7 +45,6 @@
     const B = (label, cls, fn) => h('button', { class: 'btn sm ' + cls, type: 'button', onclick: fn }, label);
     if (g.status !== 'approved') actions.push(B('✓ Approve', 'ok', () => act(g.id, () => patch(g.id, { status: 'approved' }), 'Approved')));
     if (g.status !== 'rejected') actions.push(B('✕ Reject', 'warn', () => act(g.id, () => patch(g.id, { status: 'rejected' }), 'Rejected')));
-    if (g.status === 'approved') actions.push(B(g.featured ? '☆ Unfeature' : '★ Feature', 'gold', () => act(g.id, () => patch(g.id, { featured: !g.featured }), g.featured ? 'Unfeatured' : 'Featured')));
     if (g.status === 'approved' && g.autoApproved) actions.push(B('✓ Mark reviewed', '', () => act(g.id, () => patch(g.id, { autoApproved: false }), 'Marked as reviewed')));
     actions.push(B('✎ Edit', '', () => openEdit(g)));
     if (g.status === 'approved' && typeof g.page === 'string' && g.page.startsWith('/group/')) actions.push(h('a', { class: 'btn sm', href: g.page, target: '_blank', rel: 'noopener' }, '↗ View page'));
@@ -56,12 +55,12 @@
     }));
     if (g.reportCount) actions.push(B('Clear reports', '', () => act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id) + '/clear-reports', { method: 'POST' }), 'Reports cleared')));
     actions.push(B('🗑 Delete', 'warn', () => { if (confirm('Permanently delete "' + g.name + '"?')) act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id), { method: 'DELETE' }), 'Deleted'); }));
-    const el = h('article', { class: 'row' + (g.featured ? ' featured' : ''), 'data-id': g.id },
+    const el = h('article', { class: 'row', 'data-id': g.id },
       h('div', { class: 'row-main' },
         g.img ? h('img', { class: 'thumb', src: g.img, alt: '', width: 56, height: 56, loading: 'lazy' })
           : h('span', { class: 'thumb letter', 'aria-hidden': 'true' }, (Array.from(String(g.name).trim())[0] || '#').toUpperCase()),
         h('div', null,
-        h('h3', null, g.name, g.featured ? h('span', { class: 'pill feat' }, '★ Featured') : null,
+        h('h3', null, g.name,
           g.autoApproved && g.status === 'approved' ? h('span', { class: 'pill auto', title: 'Went live via auto-approve; not reviewed by a moderator yet' }, '⚡ Auto') : null,
           g.holdReason && g.status === 'pending' ? h('span', { class: 'pill held', title: g.holdReason }, '⏸ Held: ' + g.holdReason) : null, g.sample ? h('span', { class: 'pill' }, 'Sample') : null),
         h('div', { class: 'meta' },

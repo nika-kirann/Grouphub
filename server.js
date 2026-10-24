@@ -117,7 +117,7 @@ function requireAdmin(req, res, next) {
 
 function publicGroup(g) {
   return { id: g.id, name: g.name, cat: g.cat, country: g.country, lang: g.lang, plat: g.plat, link: g.link,
-    desc: g.desc, members: g.members, featured: !!g.featured, sample: !!g.sample, createdAt: g.createdAt, img: imgUrl(g) };
+    desc: g.desc, members: g.members, sample: !!g.sample, createdAt: g.createdAt, img: imgUrl(g) };
 }
 // Same-origin picture URL; ?v= changes whenever the picture changes so it can be cached "forever".
 const imgUrl = (g) => (g.imageVersion ? `/img/group/${encodeURIComponent(g.id)}?v=${g.imageVersion}` : null);
@@ -300,7 +300,7 @@ app.get('/api/meta', (req, res) => res.json({ adultCategory: V.ADULT_CATEGORY, c
 app.get('/api/groups', ah(async (req, res) => {
   const includeAdult = req.query.includeAdult === '1';
   const list = (await store.groups((g) => g.status === 'approved' && (includeAdult || g.cat !== V.ADULT_CATEGORY)))
-    .sort((a, b) => (b.featured - a.featured) || b.createdAt.localeCompare(a.createdAt))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map(publicGroup);
   res.set('Cache-Control', 'no-cache').json({ groups: list });
 }));
@@ -370,7 +370,6 @@ api.get('/stats', ah(async (req, res) => {
   const by = (s) => all.filter((g) => g.status === s).length;
   res.json({ pending: by('pending'), approved: by('approved'), rejected: by('rejected'),
     reported: Object.keys(counts).length, openReports: Object.values(counts).reduce((a, b) => a + b, 0),
-    featured: all.filter((g) => g.featured && g.status === 'approved').length,
     submittedThisWeek: all.filter((g) => Date.parse(g.createdAt) > week && !g.sample).length, total: all.length });
 }));
 // Traffic panel. Group pages are returned with their name and URL.
@@ -421,10 +420,8 @@ api.patch('/groups/:id', ah(async (req, res) => {
     Object.assign(fields, v.value);
   }
   if (b.status !== undefined) { if (!['pending', 'approved', 'rejected'].includes(b.status)) return res.status(400).json({ error: 'Bad status.' }); fields.status = b.status; }
-  if (b.featured !== undefined) fields.featured = !!b.featured;
   if (b.autoApproved === false) fields.autoApproved = false; // admin "Mark reviewed" on an auto-approved group
   if (fields.status) fields.holdReason = null;
-  if (fields.status && fields.status !== 'approved') fields.featured = false;
   const linkChanged = fields.link && fields.link !== g.link;
   if (linkChanged) await store.clearImage(g.id); // old picture belongs to the old link
   const updated = await store.updateGroup(g.id, fields);

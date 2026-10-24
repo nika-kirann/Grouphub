@@ -32,13 +32,12 @@
   }
 function cardHTML(g, idx) {
   const isWa = g.plat === 'wa';
-  return `<div class="card${g.featured ? ' featured' : ''}" style="animation-delay:${(idx % PAGE_SIZE) * 0.04}s">
+  return `<div class="card" style="animation-delay:${(idx % PAGE_SIZE) * 0.04}s">
   <div class="card-top">
     ${avatarHTML(g, isWa)}
     <div class="card-info">
       <a class="card-name" href="${esc(groupPath(g))}" title="${esc(g.name)}">${esc(g.name)}</a>
       <div class="card-meta">
-        ${g.featured ? '<span class="badge badge-featured">★ Featured</span>' : ''}
         <span class="badge badge-${isWa ? 'wa' : 'tg'}">${isWa ? 'WhatsApp' : 'Telegram'}</span>
         <span class="badge badge-cat">${esc(g.cat)}</span>
         <span class="badge badge-country">🌍 ${esc(g.country)}</span>

@@ -271,9 +271,7 @@
     .hero-glow { max-width: 100vw; }
     button.cat-chip { font-family: 'Nunito', sans-serif; }
     :focus-visible { outline: 2px solid #ff6eb4; outline-offset: 2px; }
-    .badge-featured { background: rgba(255,200,80,0.16); color: #ffd36e; }
     .badge-sample { background: rgba(255,255,255,0.06); color: #c9cbe0; border: 1px dashed rgba(255,255,255,0.25); }
-    .card.featured { border-color: rgba(255,200,80,0.45); box-shadow: 0 0 0 1px rgba(255,200,80,0.2); }
     .card-actions { display: flex; gap: 8px; align-items: center; }
     .btn-report { background: none; border: 1px solid var(--border); color: var(--muted); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: .8rem; }
     .btn-report:hover { color: #ff7a7a; border-color: rgba(255,122,122,0.5); }
@@ -364,6 +362,7 @@
   <button type="button" class="cat-chip" data-action="chip" data-cat="Health / Fitness">💪 Fitness</button>
   <button type="button" class="cat-chip" data-action="chip" data-cat="Travel">✈️ Travel</button>
   <button type="button" class="cat-chip" data-action="chip" data-cat="Social / Friendship">🤝 Social</button>
+  <button type="button" class="cat-chip" data-action="chip" data-cat="Link Sharing">🔗 Link Sharing</button>
   <button type="button" class="cat-chip cat-chip-adult" data-action="chip" data-cat="Adult">🔞 Adult (18+)</button>
 </div>
 
@@ -379,7 +378,7 @@
       <option>Anime / Manga</option><option>Art / Design</option><option>Business / Marketing</option>
       <option>Comedy / Funny</option><option>Education</option>
       <option>Entertainment</option><option>Family</option><option>Fashion / Style</option>
-      <option>Gaming / Apps</option><option>Health / Fitness</option><option>Jobs / Career</option>
+      <option>Gaming / Apps</option><option>Health / Fitness</option><option>Jobs / Career</option><option>Link Sharing</option>
       <option>Music / Audio</option><option>News / Politics</option><option>Pets / Animals</option>
       <option>Science / Tech</option><option>Shopping</option><option>Social / Friendship</option>
       <option>Sports</option><option>Travel</option><option value="Adult">Adult (18+)</option>
@@ -486,7 +485,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label" for="groupCat">Category *</label>
-          <select class="form-select" id="groupCat" name="cat" required><option value="">Select category</option><option>Anime / Manga</option><option>Art / Design</option><option>Business / Marketing</option><option>Comedy / Funny</option><option>Education</option><option>Entertainment</option><option>Family</option><option>Fashion / Style</option><option>Gaming / Apps</option><option>Health / Fitness</option><option>Jobs / Career</option><option>Music / Audio</option><option>News / Politics</option><option>Pets / Animals</option><option>Science / Tech</option><option>Shopping</option><option>Social / Friendship</option><option>Sports</option><option>Travel</option><option value="Adult">Adult (18+)</option></select>
+          <select class="form-select" id="groupCat" name="cat" required><option value="">Select category</option><option>Anime / Manga</option><option>Art / Design</option><option>Business / Marketing</option><option>Comedy / Funny</option><option>Education</option><option>Entertainment</option><option>Family</option><option>Fashion / Style</option><option>Gaming / Apps</option><option>Health / Fitness</option><option>Jobs / Career</option><option>Link Sharing</option><option>Music / Audio</option><option>News / Politics</option><option>Pets / Animals</option><option>Science / Tech</option><option>Shopping</option><option>Social / Friendship</option><option>Sports</option><option>Travel</option><option value="Adult">Adult (18+)</option></select>
         </div>
         <div class="form-group">
           <label class="form-label" for="groupCountry">Country *</label>

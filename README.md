@@ -3,8 +3,8 @@
 GroupHub is a moderated directory of **WhatsApp and Telegram group invite links**. Visitors browse approved groups by platform, category, country and language. Anyone can submit a group, but it stays **pending** until a moderator approves it in the admin panel at `/admin`.
 
 ## Features
-- **Public site** (`/`): platform tabs, category chips, search, filters, Load more, featured groups pinned first, a report button on every card, and a submit form that checks invite links as you type.
-- **Admin panel** (`/admin`): password login, stats, and Pending / Approved / Reported / Rejected tabs. Moderators can approve, reject, edit, delete, feature or unfeature groups, view reports and clear them.
+- **Public site** (`/`): platform tabs, category chips, search, filters, Load more, a report button on every card, and a submit form that checks invite links as you type.
+- **Admin panel** (`/admin`): password login, stats, and Pending / Approved / Reported / Rejected tabs. Moderators can approve, reject, edit or delete groups, view reports and clear them.
 - **Security:**
   - Invite links are validated on the server.
   - All user content is escaped when shown.
@@ -94,13 +94,13 @@ data/                Database (git-ignored)
 ## API
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/api/groups` | – | Approved groups, featured first (Adult only with `?includeAdult=1`) |
+| GET | `/api/groups` | – | Approved groups, newest first (Adult only with `?includeAdult=1`) |
 | POST | `/api/groups` | – | Submit a group (status becomes `pending`; 10 per hour per IP) |
 | POST | `/api/groups/:id/report` | – | Report an approved group (20 per hour per IP) |
 | GET | `/api/meta` | – | Allowed categories, countries, languages, report reasons |
 | POST | `/admin/login`, `/admin/logout` | – | Session login (5 failed attempts per 15 minutes per IP) |
 | GET | `/api/admin/stats`, `/api/admin/groups?status=pending\|approved\|reported\|rejected` | admin | Dashboard data |
-| PATCH / DELETE | `/api/admin/groups/:id` | admin + CSRF | Edit, change status, feature, or delete a group |
+| PATCH / DELETE | `/api/admin/groups/:id` | admin + CSRF | Edit, change status, or delete a group |
 | POST | `/api/admin/groups/:id/clear-reports` | admin + CSRF | Clear a group's reports |
 
 ## Notes and limits
