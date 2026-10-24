@@ -157,6 +157,22 @@ function pumpImages() {
   }
 }
 
+// ---------- group names from invite pages ----------
+const linkPreview = require('./lib/linkpreview');
+/** On approval: if the stored name is generic ("WhatsApp Group", "Telegram"...), replace it with the invite page's name. */
+async function fillGenericName(id) {
+  const g = await store.group(id);
+  if (!g || !linkPreview.isGenericName(g.name)) return;
+  const r = await linkPreview.fetchLinkName(g.link);
+  const fresh = await store.group(id); // skip if edited meanwhile
+  if (!r.name || !fresh || fresh.link !== g.link || fresh.name !== g.name) { if (!r.name) console.warn(`[name] ${id} ${g.link}: ${r.reason}`); return; }
+  const v = V.validateGroup({ name: r.name }, { partial: true });
+  if (!v.ok) return;
+  await store.updateGroup(id, { name: v.value.name });
+  console.log(`[name] ${id}: "${g.name}" -> "${v.value.name}"`);
+}
+const fillNameLater = (id) => { fillGenericName(id).catch((e) => console.error('[name] ' + id + ' failed:', e.message)); };
+
 // Express 4 does not catch rejected promises, so wrap async handlers.
 const ah = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -307,6 +323,14 @@ app.get('/api/groups', ah(async (req, res) => {
   res.set('Cache-Control', 'no-cache').json({ groups: list });
 }));
 
+// Add Group form: name auto-fill from the pasted invite link. Returns { name } (null when there is no real name).
+app.get('/api/link-preview', rateLimit('linkpreview', 30, 10 * 60e3), ah(async (req, res) => {
+  const raw = String(req.query.url || '').slice(0, 300);
+  if (!linkPreview.invitePage(raw)) return res.status(400).json({ name: null, error: 'Not a WhatsApp or Telegram invite link.' });
+  const r = await linkPreview.fetchLinkName(raw);
+  res.set('Cache-Control', 'private, max-age=300').json({ name: r.name || null, plat: r.plat });
+}));
+
 app.post('/api/groups', rateLimit('submit', 10, 60 * 60e3), ah(async (req, res) => {
   const body = req.body || {};
   if (body.website) return res.status(201).json({ ok: true, status: 'pending' }); // honeypot: silently drop bots
@@ -324,7 +348,7 @@ app.post('/api/groups', rateLimit('submit', 10, 60 * 60e3), ah(async (req, res) 
   let g;
   try { g = await store.addGroup(Object.assign(v.value, { status, autoApproved: status === 'approved', holdReason, submitter: anonId(req) })); }
   catch (e) { if (e.code === '23505') return res.status(409).json({ error: 'This invite link has already been submitted.' }); throw e; } // unique race
-  if (status === 'approved') queueImage(g.id); // same background picture fetch as a manual approval
+  if (status === 'approved') { queueImage(g.id); fillNameLater(g.id); } // same background fetches as a manual approval
   res.status(201).json({ ok: true, id: g.id, status, live: status === 'approved' });
 }));
 
@@ -428,7 +452,7 @@ api.patch('/groups/:id', ah(async (req, res) => {
   if (linkChanged) await store.clearImage(g.id); // old picture belongs to the old link
   const updated = await store.updateGroup(g.id, fields);
   // Fetch the picture in the background on approval (or when an approved group's link changes). Approval never waits for it.
-  if (updated.status === 'approved' && ((fields.status === 'approved' && g.status !== 'approved') || linkChanged)) queueImage(g.id);
+  if (updated.status === 'approved' && ((fields.status === 'approved' && g.status !== 'approved') || linkChanged)) { queueImage(g.id); fillNameLater(g.id); }
   res.json({ group: updated });
 }));
 // Re-fetch one group's picture now and report the result (admin "Refresh picture" button).

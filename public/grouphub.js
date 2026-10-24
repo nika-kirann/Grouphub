@@ -113,8 +113,30 @@
     $('plat-tg').className = 'plat-btn' + (p === 'tg' ? ' sel-tg' : ''); $('plat-tg').setAttribute('aria-pressed', p === 'tg');
     $('linkLabel').textContent = p === 'wa' ? 'WhatsApp Invite Link *' : 'Telegram Group/Channel Link *';
     $('groupLink').placeholder = p === 'wa' ? 'https://chat.whatsapp.com/…' : 'https://t.me/…';
-    updateLinkHint();
+    updateLinkHint(); scheduleNameLookup(true);
   }
+
+  // Group name auto-fill from the invite page (GET /api/link-preview). Only fills an empty name or one we filled
+  // ourselves earlier (autoName); anything the user typed is left alone. Failures are silent: the form still works.
+  let autoName = '', autoFor = '', nameSeq = 0, nameTimer = null;
+  function setNameHint(text, cls) { const h = $('nameHint'); h.className = 'form-hint' + (cls ? ' ' + cls : ''); h.textContent = text || ''; }
+  async function autoFillName() {
+    const link = $('groupLink').value.trim(), nameEl = $('groupName');
+    if (!checkLink(selectedPlat, link)) return;
+    if (nameEl.value.trim() && nameEl.value !== autoName) return; // user's own text wins
+    if (autoName && nameEl.value === autoName && autoFor === link) return; // already filled for this link
+    const seq = ++nameSeq;
+    setNameHint('Fetching name…', 'busy');
+    let name = null;
+    try { name = (await api('/api/link-preview?url=' + encodeURIComponent(link))).name; } catch (ex) { /* no name: keep manual entry */ }
+    if (seq !== nameSeq) return; // a newer link was pasted meanwhile
+    if (name && (!nameEl.value.trim() || nameEl.value === autoName)) {
+      nameEl.value = autoName = name.slice(0, nameEl.maxLength > 0 ? nameEl.maxLength : 60); autoFor = link;
+      setNameHint('✓ Name filled from the invite link. You can edit it.', 'ok');
+    } else setNameHint('');
+  }
+  function scheduleNameLookup(now) { clearTimeout(nameTimer); nameTimer = setTimeout(autoFillName, now ? 0 : 600); }
+  function resetAutoName() { autoName = ''; autoFor = ''; nameSeq++; clearTimeout(nameTimer); setNameHint(''); }
 
   async function submitGroup(e) {
     e.preventDefault();
@@ -129,7 +151,7 @@
     err.hidden = true; $('submitBtn').disabled = true;
     try {
       const r = await api('/api/groups', { method: 'POST', body: JSON.stringify(data) });
-      f.reset(); $('descCount').textContent = '0/300'; $('adultNote').hidden = true; selectPlat('wa'); closeOverlays();
+      f.reset(); resetAutoName(); $('descCount').textContent = '0/300'; $('adultNote').hidden = true; selectPlat('wa'); closeOverlays();
       if (r && r.live) { toast('🎉 Your group is live!'); load(); }
       else toast('✓ Submitted for review! A moderator will check your group before it appears.');
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
@@ -179,7 +201,13 @@
   $('groupCat').addEventListener('change', () => { $('adultNote').hidden = $('groupCat').value !== ADULT; });
   $('countryFilter').addEventListener('change', () => renderGrid(true));
   $('langFilter').addEventListener('change', () => renderGrid(true));
-  $('groupLink').addEventListener('input', updateLinkHint);
+  $('groupLink').addEventListener('input', () => {
+    const other = selectedPlat === 'wa' ? 'tg' : 'wa', v = $('groupLink').value;
+    if (!checkLink(selectedPlat, v) && checkLink(other, v)) selectPlat(other); // pasted the other platform's link
+    updateLinkHint(); scheduleNameLookup(false);
+  });
+  $('groupLink').addEventListener('blur', () => scheduleNameLookup(true));
+  $('groupName').addEventListener('input', () => { if ($('groupName').value !== autoName) { autoName = ''; nameSeq++; setNameHint(''); } }); // user took over
   $('groupDesc').addEventListener('input', () => { $('descCount').textContent = $('groupDesc').value.length + '/300'; });
   $('addForm').addEventListener('submit', submitGroup);
   $('reportForm').addEventListener('submit', submitReport);
