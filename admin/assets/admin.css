@@ -92,3 +92,13 @@ dialog h2{margin:0 0 16px}dialog form{display:grid;gap:12px}
 .tops ol{margin:0;padding-left:20px;font-size:.88rem}.tops li{padding:3px 0;display:list-item}.tops li span{float:right;color:var(--muted);font-weight:700}
 .tops li a{color:var(--text);text-decoration:none}.tops li a:hover{color:#d4a8ff}
 @media (max-width:760px){.tcards{grid-template-columns:1fr 1fr}.tops{grid-template-columns:1fr}.traffic{padding:14px}}
+/* sort, featured dialog, settings */
+.tabs select{margin-left:auto;width:auto;max-width:170px}.tabs select+input{margin-left:0}.tabs .auto-filter:not([hidden])+select{margin-left:8px}
+.pill.count{color:#d9c6ff;background:rgba(176,106,255,.12)}
+.feat-opts{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:10px;margin:0}
+.feat-opts label{display:flex;flex-direction:row;align-items:center;gap:10px;font-weight:600;font-size:.92rem;color:var(--text);text-transform:none;letter-spacing:0;cursor:pointer}
+.feat-opts input[type=radio]{width:auto;margin:0}.feat-opts input[type=date]{width:auto;padding:6px 8px}
+.settings-box{margin:0 0 18px;border:1px solid var(--line);border-radius:14px;padding:12px 16px;background:rgba(255,255,255,.02)}
+.settings-box summary{cursor:pointer;font-weight:700}
+.settings-box form{display:grid;gap:10px;margin-top:12px}
+.settings-box label{display:grid;gap:6px;font-weight:600;font-size:.9rem}

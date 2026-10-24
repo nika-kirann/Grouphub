@@ -80,6 +80,22 @@ create table if not exists stats_pages (
   primary key (day, page)
 );
 
+-- Featured listings (managed by the admin): when the group was featured and, optionally, when it stops being featured.
+alter table groups add column if not exists featured_at timestamptz;
+alter table groups add column if not exists featured_until timestamptz;
+-- All-time per-group counters shown on cards/pages: page views and Join-button clicks (each visitor counted once per day).
+create table if not exists group_counts (
+  group_id text primary key references groups(id) on delete cascade,
+  views    integer not null default 0,
+  joins    integer not null default 0
+);
+-- Daily-rotating salted keys used only to count each visitor once per group per day. Pruned after 2 days.
+create table if not exists group_counts_seen (
+  day date not null,
+  k   text not null,
+  primary key (day, k)
+);
+
 -- Supabase exposes tables in the public schema through its auto-generated REST API.
 -- Turning on Row Level Security with NO policies blocks that API (anon/authenticated keys)
 -- while the GroupHub server, which connects as the database owner, keeps full access.
@@ -90,3 +106,5 @@ alter table settings enable row level security;
 alter table stats_daily enable row level security;
 alter table stats_visitors enable row level security;
 alter table stats_pages enable row level security;
+alter table group_counts enable row level security;
+alter table group_counts_seen enable row level security;

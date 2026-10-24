@@ -30,7 +30,8 @@
     const q = $('q').value.trim();
     const autoOnly = tab === 'approved' && $('autoOnly').checked;
     $('autoFilterWrap').hidden = tab !== 'approved';
-    groups = (await api('/api/admin/groups?status=' + tab + (autoOnly ? '&auto=1' : '') + (q ? '&q=' + encodeURIComponent(q) : ''))).groups;
+    const sort = $('sort').value;
+    groups = (await api('/api/admin/groups?status=' + tab + (autoOnly ? '&auto=1' : '') + (sort ? '&sort=' + sort : '') + (q ? '&q=' + encodeURIComponent(q) : ''))).groups;
     render();
   }
   async function refresh() { await Promise.all([loadStats(), loadList()]); }
@@ -45,7 +46,10 @@
     const B = (label, cls, fn) => h('button', { class: 'btn sm ' + cls, type: 'button', onclick: fn }, label);
     if (g.status !== 'approved') actions.push(B('✓ Approve', 'ok', () => act(g.id, () => patch(g.id, { status: 'approved' }), 'Approved')));
     if (g.status !== 'rejected') actions.push(B('✕ Reject', 'warn', () => act(g.id, () => patch(g.id, { status: 'rejected' }), 'Rejected')));
-    if (g.status === 'approved') actions.push(B(g.featured ? '☆ Unfeature' : '★ Feature', 'gold', () => act(g.id, () => patch(g.id, { featured: !g.featured }), g.featured ? 'Unfeatured' : 'Featured')));
+    if (g.status === 'approved' && g.featuredNow) {
+      actions.push(B('☆ Unfeature', 'gold', () => act(g.id, () => patch(g.id, { featured: false }), 'Unfeatured')));
+      actions.push(B('⏱ Change end date', '', () => openFeature(g)));
+    } else if (g.status === 'approved' && g.cat !== 'Adult') actions.push(B('★ Feature', 'gold', () => openFeature(g)));
     if (g.status === 'approved' && g.autoApproved) actions.push(B('✓ Mark reviewed', '', () => act(g.id, () => patch(g.id, { autoApproved: false }), 'Marked as reviewed')));
     actions.push(B('✎ Edit', '', () => openEdit(g)));
     if (g.status === 'approved' && typeof g.page === 'string' && g.page.startsWith('/group/')) actions.push(h('a', { class: 'btn sm', href: g.page, target: '_blank', rel: 'noopener' }, '↗ View page'));
@@ -56,12 +60,15 @@
     }));
     if (g.reportCount) actions.push(B('Clear reports', '', () => act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id) + '/clear-reports', { method: 'POST' }), 'Reports cleared')));
     actions.push(B('🗑 Delete', 'warn', () => { if (confirm('Permanently delete "' + g.name + '"?')) act(g.id, () => api('/api/admin/groups/' + encodeURIComponent(g.id), { method: 'DELETE' }), 'Deleted'); }));
-    const el = h('article', { class: 'row' + (g.featured ? ' featured' : ''), 'data-id': g.id },
+    const until = g.featuredUntil ? new Date(g.featuredUntil) : null;
+    const featPill = g.featuredNow ? h('span', { class: 'pill feat', title: g.featuredShown ? 'Pinned at the top of the site' : 'More than 6 groups are featured; only the 6 most recently featured are shown' },
+      '★ Featured' + (until ? ' until ' + until.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ' (no end date)') + (g.featuredShown ? '' : ' · not shown (over 6)')) : null;
+    const el = h('article', { class: 'row' + (g.featuredNow ? ' featured' : ''), 'data-id': g.id },
       h('div', { class: 'row-main' },
         g.img ? h('img', { class: 'thumb', src: g.img, alt: '', width: 56, height: 56, loading: 'lazy' })
           : h('span', { class: 'thumb letter', 'aria-hidden': 'true' }, (Array.from(String(g.name).trim())[0] || '#').toUpperCase()),
         h('div', null,
-        h('h3', null, g.name, g.featured ? h('span', { class: 'pill feat' }, '★ Featured') : null,
+        h('h3', null, g.name, featPill,
           g.autoApproved && g.status === 'approved' ? h('span', { class: 'pill auto', title: 'Went live via auto-approve; not reviewed by a moderator yet' }, '⚡ Auto') : null,
           g.holdReason && g.status === 'pending' ? h('span', { class: 'pill held', title: g.holdReason }, '⏸ Held: ' + g.holdReason) : null, g.sample ? h('span', { class: 'pill' }, 'Sample') : null),
         h('div', { class: 'meta' },
@@ -69,6 +76,8 @@
           h('span', { class: 'pill st-' + g.status }, g.status),
           g.cat === 'Adult' ? h('span', { class: 'pill adult' }, '🔞 Adult 18+') : h('span', { class: 'pill' }, g.cat), h('span', { class: 'pill' }, g.country), h('span', { class: 'pill' }, g.lang),
           g.members ? h('span', { class: 'pill' }, g.members.toLocaleString() + ' members') : null,
+          g.status === 'approved' ? h('span', { class: 'pill count', title: 'All-time group page views (each visitor once per day)' }, '👁 ' + (g.views || 0).toLocaleString() + (g.views === 1 ? ' view' : ' views')) : null,
+          g.status === 'approved' ? h('span', { class: 'pill count', title: 'All-time Join button clicks (each visitor once per day)' }, '👥 ' + (g.joins || 0).toLocaleString() + ' joins') : null,
           g.reportCount ? h('span', { class: 'pill rep' }, '⚑ ' + g.reportCount + ' report' + (g.reportCount > 1 ? 's' : '')) : null,
           h('span', { class: 'pill' }, 'Added ' + new Date(g.createdAt).toLocaleString())),
         g.desc ? h('p', { class: 'desc' }, g.desc) : h('p', { class: 'desc muted' }, '(no description)'),
@@ -108,6 +117,41 @@
     catch (ex) { $('editError').textContent = ex.message; $('editError').hidden = false; }
   });
 
+
+  // ----- feature dialog -----
+  let featuring = null;
+  function openFeature(g) {
+    featuring = g; const f = $('featForm');
+    $('featName').textContent = g.name; $('featError').hidden = true;
+    const d = new Date(Date.now() + 7 * 864e5); f.elements.until.value = d.toISOString().slice(0, 10);
+    f.elements.until.min = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    $('featDialog').showModal();
+  }
+  $('featCancel').addEventListener('click', () => $('featDialog').close());
+  $('featForm').elements.until.addEventListener('focus', () => { $('featForm').querySelector('input[value="date"]').checked = true; });
+  $('featForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target, len = f.elements.len.value, body = { featured: true };
+    if (len === '7' || len === '30') body.featuredDays = Number(len);
+    else if (len === 'date') {
+      if (!f.elements.until.value) { $('featError').textContent = 'Pick an end date.'; $('featError').hidden = false; return; }
+      body.featuredUntil = new Date(f.elements.until.value + 'T23:59:59').toISOString(); // end of that day, your time
+    }
+    try { await patch(featuring.id, body); $('featDialog').close(); toast('Featured'); refresh(); }
+    catch (ex) { $('featError').textContent = ex.message; $('featError').hidden = false; }
+  });
+
+  // ----- featured contact setting -----
+  function showContact(s) {
+    const f = $('contactForm'); f.elements.featureContactText.value = s.featureContactText || ''; f.elements.featureContactLink.value = s.featureContactLink || '';
+    $('contactState').textContent = s.featureContactText || s.featureContactLink ? '· set' : '· not set yet';
+  }
+  $('contactForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); const f = e.target;
+    try {
+      showContact(await api('/api/admin/settings', { method: 'PUT', body: JSON.stringify({ featureContactText: f.elements.featureContactText.value, featureContactLink: f.elements.featureContactLink.value }) }));
+      $('contactError').hidden = true; toast('Contact saved');
+    } catch (ex) { $('contactError').textContent = ex.message; $('contactError').hidden = false; }
+  });
 
   // ----- traffic -----
   const fmt = (n) => Number(n || 0).toLocaleString();
@@ -168,6 +212,7 @@
   $('autoToggle').addEventListener('click', () => setAuto($('autoToggle').getAttribute('aria-checked') !== 'true'));
   $('autoBannerOff').addEventListener('click', () => setAuto(false));
   $('autoOnly').addEventListener('change', loadList);
+  $('sort').addEventListener('change', loadList);
   $('backfillBtn').addEventListener('click', async () => {
     if (!confirm('Fetch pictures for all approved groups that don\'t have one yet? This runs in the background.')) return;
     try { const r = await api('/api/admin/images/backfill', { method: 'POST', body: JSON.stringify({ retry: true }) }); toast(r.queued ? 'Fetching ' + r.queued + ' picture(s) in the background… refresh in a minute' : 'Every approved group already has a picture (or none is available)'); }
@@ -179,7 +224,7 @@
       CSRF = (await api('/api/admin/me')).csrf;
       META = await fetch('/api/meta').then((r) => r.json());
       const f = $('editForm'); fillSelect(f.elements.cat, META.categories); fillSelect(f.elements.country, META.countries); fillSelect(f.elements.lang, META.languages);
-      showAuto((await api('/api/admin/settings')).autoApprove);
+      const st = await api('/api/admin/settings'); showAuto(st.autoApprove); showContact(st);
       loadTraffic().catch((e) => toast('⚠ Traffic: ' + e.message));
       await refresh();
     } catch (e) { toast('⚠ ' + e.message); }

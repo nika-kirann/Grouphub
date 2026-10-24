@@ -65,8 +65,31 @@ async function pageKey(p) {
   const id = render.parseGroupParam(raw);
   return id && (await approvedIds()).has(id) ? 'g:' + id : null;
 }
-const analytics = new Analytics({ store, pageKey, tz: process.env.STATS_TZ || 'Asia/Kolkata' });
+const clearPageCaches = () => { homeCache = null; pageCache.clear(); };
+// All-time per-group views / Join clicks (shown on cards and group pages). Re-read after every count flush.
+let groupCounts = {};
+async function refreshCounts() {
+  try { groupCounts = await store.groupCounts(); clearPageCaches(); } catch (e) { console.error('[stats] reading group counts failed:', e.message); }
+}
+const analytics = new Analytics({ store, pageKey, tz: process.env.STATS_TZ || 'Asia/Kolkata',
+  isGroup: async (id) => (await approvedIds()).has(id), onCounts: () => { refreshCounts(); } });
 setInterval(() => analytics.flush().catch(() => {}), 60e3).unref();
+
+// ---------- featured listings (see lib/featured.js) ----------
+const F = require('./lib/featured');
+// Turn off features whose end date has passed (they also stop showing the moment they expire, see isFeaturedNow).
+async function expireFeatured() {
+  try {
+    for (const g of F.expired(await store.groups((x) => x.featured), Date.now())) {
+      await store.updateGroup(g.id, { featured: false });
+      console.log('[featured] expired: ' + g.id);
+    }
+  } catch (e) { console.error('[featured] expiry check failed:', e.message); }
+}
+setInterval(expireFeatured, 60e3).unref();
+async function featureContact() {
+  return { text: await store.getSetting('feature_contact_text', ''), link: await store.getSetting('feature_contact_link', '') };
+}
 
 // ---------- helpers ----------
 function clientIp(req) { return req.ip || req.socket.remoteAddress || 'unknown'; }
@@ -115,10 +138,15 @@ function requireAdmin(req, res, next) {
   req.session = s; next();
 }
 
-function publicGroup(g) {
+/** feat: Map<id, rank> from F.featuredRank() over the approved groups (featured = shown as featured right now). */
+function publicGroup(g, feat) {
+  const c = groupCounts[g.id] || {}, featured = !!feat && feat.has(g.id);
   return { id: g.id, name: g.name, cat: g.cat, country: g.country, lang: g.lang, plat: g.plat, link: g.link,
-    desc: g.desc, members: g.members, featured: !!g.featured, sample: !!g.sample, createdAt: g.createdAt, img: imgUrl(g) };
+    desc: g.desc, members: g.members, featured, featuredAt: featured ? (g.featuredAt || g.createdAt) : undefined,
+    sample: !!g.sample, createdAt: g.createdAt, img: imgUrl(g), views: c.views || 0, joins: c.joins || 0 };
 }
+/** Approved groups -> public objects (featured flags computed across the whole list). */
+function publicGroups(list) { const feat = F.featuredRank(list, Date.now()); return list.map((g) => publicGroup(g, feat)); }
 // Same-origin picture URL; ?v= changes whenever the picture changes so it can be cached "forever".
 const imgUrl = (g) => (g.imageVersion ? `/img/group/${encodeURIComponent(g.id)}?v=${g.imageVersion}` : null);
 
@@ -217,8 +245,8 @@ let homeCache = null; // { html, at }
 const HOME_TTL_MS = 60e3;
 app.get('/', ah(async (req, res) => {
   if (!homeCache || Date.now() - homeCache.at > HOME_TTL_MS) {
-    const list = (await store.groups((g) => g.status === 'approved')).map(publicGroup);
-    homeCache = { html: render.renderHome(list), at: Date.now() };
+    const list = publicGroups(await store.groups((g) => g.status === 'approved'));
+    homeCache = { html: render.renderHome(list, { contact: await featureContact() }), at: Date.now() };
   }
   res.set('Cache-Control', 'no-cache').type('html').send(homeCache.html);
 }));
@@ -238,12 +266,13 @@ app.get('/group/:param', ah(async (req, res) => {
   if ('/group/' + req.params.param !== canonical) return res.redirect(301, canonical);
   let hit = pageCache.get(id);
   if (!hit || Date.now() - hit.at > HOME_TTL_MS) {
-    const pub = Object.assign(publicGroup(g), { updatedAt: g.updatedAt });
+    const all = await store.groups((x) => x.status === 'approved'), feat = F.featuredRank(all, Date.now());
+    const pub = Object.assign(publicGroup(g, feat), { updatedAt: g.updatedAt });
     // Similar: same category first, then same platform; never Adult, never the group itself.
-    const others = render.publicList((await store.groups((x) => x.status === 'approved' && x.id !== g.id)).map(publicGroup));
+    const others = render.publicList(all.filter((x) => x.id !== g.id).map((x) => publicGroup(x, feat)));
     const same = others.filter((x) => x.cat === g.cat);
     const similar = same.concat(others.filter((x) => x.cat !== g.cat && x.plat === g.plat)).slice(0, SIMILAR_MAX);
-    hit = { html: render.renderGroupPage(pub, similar), at: Date.now() };
+    hit = { html: render.renderGroupPage(pub, similar, { contact: await featureContact() }), at: Date.now() };
     if (pageCache.size > 2000) pageCache.clear();
     pageCache.set(id, hit);
   }
@@ -294,14 +323,23 @@ app.post('/api/collect', rateLimit('collect', 60, 60e3), (req, res) => {
   res.set('Cache-Control', 'no-store').status(204).end();
 });
 
+// Join-button clicks on group pages (sent with navigator.sendBeacon from /group.js). Bots and repeat clicks
+// (same visitor, same group, same day) are not counted; nothing is stored about the visitor except a daily-rotating hash.
+app.post('/api/join', rateLimit('join', 30, 60e3), (req, res) => {
+  const b = req.body || {};
+  analytics.join({ id: typeof b.id === 'string' ? b.id.slice(0, 40) : '', vid: b.v, ip: clientIp(req), ua: String(req.get('User-Agent') || '').slice(0, 400) })
+    .catch((e) => console.error('[stats] join failed:', e.message));
+  res.set('Cache-Control', 'no-store').status(204).end();
+});
+
 app.get('/api/meta', (req, res) => res.json({ adultCategory: V.ADULT_CATEGORY, categories: V.CATEGORIES, countries: V.COUNTRIES, languages: V.LANGUAGES, reasons: V.REPORT_REASONS }));
 
 // Adult groups are only returned when explicitly requested (?includeAdult=1), after the client-side 18+ gate.
 app.get('/api/groups', ah(async (req, res) => {
   const includeAdult = req.query.includeAdult === '1';
-  const list = (await store.groups((g) => g.status === 'approved' && (includeAdult || g.cat !== V.ADULT_CATEGORY)))
-    .sort((a, b) => (b.featured - a.featured) || b.createdAt.localeCompare(a.createdAt))
-    .map(publicGroup);
+  // Featured groups (max 6, never Adult) first, most recently featured first; then newest.
+  const list = render.publicList(publicGroups(await store.groups((g) => g.status === 'approved'))
+    .filter((g) => includeAdult || g.cat !== V.ADULT_CATEGORY), { includeAdult: true });
   res.set('Cache-Control', 'no-cache').json({ groups: list });
 }));
 
@@ -370,7 +408,7 @@ api.get('/stats', ah(async (req, res) => {
   const by = (s) => all.filter((g) => g.status === s).length;
   res.json({ pending: by('pending'), approved: by('approved'), rejected: by('rejected'),
     reported: Object.keys(counts).length, openReports: Object.values(counts).reduce((a, b) => a + b, 0),
-    featured: all.filter((g) => g.featured && g.status === 'approved').length,
+    featured: all.filter((g) => F.isFeaturedNow(g, Date.now())).length,
     submittedThisWeek: all.filter((g) => Date.parse(g.createdAt) > week && !g.sample).length, total: all.length });
 }));
 // Traffic panel. Group pages are returned with their name and URL.
@@ -389,22 +427,38 @@ api.get('/traffic', ah(async (req, res) => {
 api.get('/traffic/online', (req, res) => res.json({ onlineNow: analytics.onlineNow() }));
 api.get('/groups', ah(async (req, res) => {
   const status = String(req.query.status || 'pending'), q = String(req.query.q || '').toLowerCase();
-  const counts = await store.reportCounts();
+  const counts = await store.reportCounts(), gc = await store.groupCounts(), sort = String(req.query.sort || '');
+  const shown = F.featuredRank(await store.groups((g) => g.status === 'approved'), Date.now());
   let list = status === 'reported' ? await store.groups((g) => counts[g.id]) : await store.groups((g) => g.status === status);
   if (status === 'approved' && req.query.auto === '1') list = list.filter((g) => g.autoApproved);
   if (q) list = list.filter((g) => (g.name + ' ' + g.desc + ' ' + g.link).toLowerCase().includes(q));
-  list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0, img: imgUrl(g), page: g.status === 'approved' ? Card.groupPath(g) : null }))
-    .sort((a, b) => status === 'reported' ? b.reportCount - a.reportCount : b.createdAt.localeCompare(a.createdAt));
+  const newest = (a, b) => b.createdAt.localeCompare(a.createdAt);
+  const order = sort === 'views' ? (a, b) => (b.views - a.views) || newest(a, b)
+    : sort === 'joins' ? (a, b) => (b.joins - a.joins) || newest(a, b)
+      : status === 'reported' ? (a, b) => b.reportCount - a.reportCount : newest;
+  list = list.map((g) => Object.assign({}, g, { reportCount: counts[g.id] || 0, img: imgUrl(g), page: g.status === 'approved' ? Card.groupPath(g) : null,
+    views: (gc[g.id] || {}).views || 0, joins: (gc[g.id] || {}).joins || 0,
+    featuredNow: F.isFeaturedNow(g, Date.now()), featuredShown: shown.has(g.id) }))
+    .sort(order);
   res.json({ groups: list });
 }));
 // Site settings. GET is read-only; PUT needs the CSRF token (enforced by requireAdmin for non-GET).
-api.get('/settings', ah(async (req, res) => res.json({ autoApprove: (await store.getSetting('auto_approve', false)) === true })));
+async function settingsView() {
+  const c = await featureContact();
+  return { autoApprove: (await store.getSetting('auto_approve', false)) === true, featureContactText: c.text, featureContactLink: c.link };
+}
+api.get('/settings', ah(async (req, res) => res.json(await settingsView())));
 api.put('/settings', ah(async (req, res) => {
   const b = req.body || {};
-  if (typeof b.autoApprove !== 'boolean') return res.status(400).json({ error: 'autoApprove must be true or false.' });
-  await store.setSetting('auto_approve', b.autoApprove);
-  console.log('[settings] auto-approve ' + (b.autoApprove ? 'ON' : 'OFF'));
-  res.json({ autoApprove: b.autoApprove });
+  if (b.autoApprove !== undefined && typeof b.autoApprove !== 'boolean') return res.status(400).json({ error: 'autoApprove must be true or false.' });
+  const c = F.validateContact(b);
+  if (!c.ok) return res.status(400).json({ error: c.error });
+  if (b.autoApprove === undefined && !Object.keys(c.value).length) return res.status(400).json({ error: 'Nothing to change.' });
+  if (b.autoApprove !== undefined) { await store.setSetting('auto_approve', b.autoApprove); console.log('[settings] auto-approve ' + (b.autoApprove ? 'ON' : 'OFF')); }
+  if (c.value.featureContactText !== undefined) await store.setSetting('feature_contact_text', c.value.featureContactText);
+  if (c.value.featureContactLink !== undefined) await store.setSetting('feature_contact_link', c.value.featureContactLink);
+  if (Object.keys(c.value).length) { clearPageCaches(); console.log('[settings] featured contact updated'); }
+  res.json(await settingsView());
 }));
 api.get('/groups/:id/reports', ah(async (req, res) => res.json({ reports: await store.reportsFor(req.params.id) })));
 api.patch('/groups/:id', ah(async (req, res) => {
@@ -421,10 +475,20 @@ api.patch('/groups/:id', ah(async (req, res) => {
     Object.assign(fields, v.value);
   }
   if (b.status !== undefined) { if (!['pending', 'approved', 'rejected'].includes(b.status)) return res.status(400).json({ error: 'Bad status.' }); fields.status = b.status; }
-  if (b.featured !== undefined) fields.featured = !!b.featured;
+  if (b.featured !== undefined) {
+    if (b.featured) {
+      if ((fields.status || g.status) !== 'approved') return res.status(400).json({ error: 'Only approved groups can be featured.' });
+      if ((fields.cat || g.cat) === V.ADULT_CATEGORY) return res.status(400).json({ error: 'Adult groups can\'t be featured.' });
+      const f = F.parseFeature(b, Date.now());
+      if (!f.ok) return res.status(400).json({ error: f.error });
+      fields.featured = true; fields.featuredUntil = f.until;
+      if (!F.isFeaturedNow(g, Date.now())) fields.featuredAt = new Date().toISOString(); // changing the end date keeps its place
+    } else { fields.featured = false; fields.featuredUntil = null; }
+  }
   if (b.autoApproved === false) fields.autoApproved = false; // admin "Mark reviewed" on an auto-approved group
   if (fields.status) fields.holdReason = null;
   if (fields.status && fields.status !== 'approved') fields.featured = false;
+  if (fields.cat === V.ADULT_CATEGORY) fields.featured = false; // never feature Adult groups
   const linkChanged = fields.link && fields.link !== g.link;
   if (linkChanged) await store.clearImage(g.id); // old picture belongs to the old link
   const updated = await store.updateGroup(g.id, fields);
@@ -461,6 +525,8 @@ app.use((err, req, res, next) => {
   try {
     await store.init({ seed: process.env.SEED_SAMPLES === '1' ? sampleGroups() : null });
     await analytics.init();
+    await refreshCounts();
+    await expireFeatured();
   } catch (e) {
     console.error('[db] Failed to initialise ' + store.kind + ' storage:', e.message);
     process.exit(1);

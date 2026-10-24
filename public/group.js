@@ -48,9 +48,22 @@
     const a = el.dataset.action;
     if (a === 'copy') { const ok = await copy(main.dataset.link); toast(ok ? 'Invite link copied' : 'Copy failed: long-press the Join button instead', !ok); }
     else if (a === 'report') { reportId = el.dataset.id; $('reportName').textContent = el.dataset.name; $('reportError').hidden = true; openOverlay('reportOverlay', $('reportReason')); }
+    else if (a === 'open-featured') { e.preventDefault(); openOverlay('featuredOverlay', $('featuredOverlay').querySelector('.modal-close')); }
     else if (a === 'close-modal') closeOverlays();
     else if (a === 'age-yes') { try { localStorage.setItem(AGE_KEY, '1'); } catch (e2) { /* this page view only */ } document.body.classList.remove('adult-locked'); closeOverlays(); }
     else if (a === 'age-no') { location.href = '/'; }
+  });
+  // ----- Join clicks: counted once per visitor per day (same-origin beacon; the link opens normally) -----
+  document.addEventListener('click', (e) => {
+    const j = e.target.closest('.gp-join');
+    if (!j || !main || main.dataset.link === '#' || navigator.webdriver) return;
+    try {
+      let vid = null; try { vid = localStorage.getItem('grouphub.vid'); } catch (e2) { /* storage blocked */ }
+      const body = JSON.stringify({ id: main.dataset.id, v: /^[a-f0-9]{32}$/.test(vid || '') ? vid : null });
+      if (!(navigator.sendBeacon && navigator.sendBeacon('/api/join', new Blob([body], { type: 'application/json' })))) {
+        fetch('/api/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true, credentials: 'same-origin' }).catch(() => {});
+      }
+    } catch (e3) { /* never block the join */ }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('.overlay.open') && !ageOpen()) closeOverlays(); });
 

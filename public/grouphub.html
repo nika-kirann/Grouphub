@@ -273,7 +273,20 @@
     :focus-visible { outline: 2px solid #ff6eb4; outline-offset: 2px; }
     .badge-featured { background: rgba(255,200,80,0.16); color: #ffd36e; }
     .badge-sample { background: rgba(255,255,255,0.06); color: #c9cbe0; border: 1px dashed rgba(255,255,255,0.25); }
-    .card.featured { border-color: rgba(255,200,80,0.45); box-shadow: 0 0 0 1px rgba(255,200,80,0.2); }
+    .card.featured { border-color: rgba(255,200,80,0.45); box-shadow: 0 0 0 1px rgba(255,200,80,0.2), 0 6px 26px rgba(255,200,80,0.08); background: linear-gradient(160deg, rgba(255,200,80,0.07), rgba(255,200,80,0) 55%), var(--surface); }
+    .card-stats, .gp-stats { display: flex; flex-wrap: wrap; gap: 2px 4px; font-size: 0.78rem; color: var(--muted); }
+    .gp-stats { font-size: 0.9rem; margin: -4px 0 14px; }
+    .add-cta p.feat-cta { margin: 14px auto 0; font-size: 0.88rem; }
+    .feat-cta a { color: #ffd36e; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+    .feat-modal p { color: var(--muted); line-height: 1.6; margin: 0 0 12px; }
+    .feat-points { margin: 0 0 16px; padding-left: 4px; list-style: none; color: var(--text); line-height: 1.9; font-size: 0.93rem; }
+    .feat-contact { margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; background: var(--bg3); border: 1px solid rgba(255,200,80,0.25); }
+    .feat-contact .fc-text { color: var(--text); margin: 0 0 10px; white-space: pre-line; word-break: break-word; }
+    .feat-contact .fc-text:last-child { margin: 0; }
+    .feat-contact .fc-unset { color: var(--muted); font-style: italic; }
+    .feat-contact .fc-link { display: block; text-align: center; text-decoration: none; }
+    .feat-small { font-size: 0.8rem; }
+    .gp-feat-btn { color: #ffd36e; text-decoration: none; }
     .card-actions { display: flex; gap: 8px; align-items: center; }
     .btn-report { background: none; border: 1px solid var(--border); color: var(--muted); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: .8rem; }
     .btn-report:hover { color: #ff7a7a; border-color: rgba(255,122,122,0.5); }
@@ -334,6 +347,7 @@
   <h2 id="addCtaTitle">Got a WhatsApp or Telegram group?</h2>
   <p>List it on GroupHub for free and get new members. Every group is reviewed before it goes live.</p>
   <a href="#add" data-action="open-add" class="btn-add-cta">✦ Add Your Group</a>
+  <p class="feat-cta">⭐ Want more members? <a href="#featured" data-action="open-featured">Get your group featured</a></p>
 </section>
 
 <!-- PLATFORM TABS -->
@@ -526,6 +540,23 @@
       <p class="form-error" id="reportError" role="alert" hidden></p>
       <button class="btn-submit" type="submit">Send report</button>
     </form>
+  </div>
+</div>
+
+<!-- FEATURED INFO -->
+<div class="overlay" id="featuredOverlay" data-overlay>
+  <div class="modal feat-modal" role="dialog" aria-modal="true" aria-labelledby="featuredTitle">
+    <button type="button" class="modal-close" data-action="close-modal" aria-label="Close">✕</button>
+    <h2 id="featuredTitle">⭐ Get your group featured</h2>
+    <p>Featured groups are pinned at the top of GroupHub with a <span class="badge badge-featured">⭐ Featured</span> badge and a highlighted card, so many more people see them first.</p>
+    <ul class="feat-points">
+      <li>📌 Pinned above all other groups on the homepage and in matching filters</li>
+      <li>✨ Gold highlight and Featured badge</li>
+      <li>📅 For as long as you like (for example 7 or 30 days)</li>
+    </ul>
+    <p>Want it? Contact the site owner:</p>
+    <div class="feat-contact"><!--SSR:FEATURE_CONTACT--></div>
+    <p class="feat-small">Your group must follow the listing rules and be approved first. Adult groups can't be featured.</p>
   </div>
 </div>
 

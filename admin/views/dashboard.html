@@ -28,12 +28,23 @@
       <p class="muted small" id="trafficNote"></p>
     </section>
     <section class="stats" id="stats" aria-label="Stats"></section>
+    <details class="settings-box" id="settingsBox">
+      <summary>⚙ Settings · Featured listings contact <span class="muted small" id="contactState"></span></summary>
+      <form id="contactForm" novalidate>
+        <p class="muted small">Shown to visitors who click “Get your group featured” (homepage and group pages). You collect payment yourself (e.g. UPI). Leave both empty to show “contact details coming soon”.</p>
+        <label>Message<textarea name="featureContactText" rows="2" maxlength="200" placeholder="e.g. Featuring costs ₹99 for 7 days. Message me on WhatsApp with your group link."></textarea></label>
+        <label>Contact link (https:// or mailto:)<input name="featureContactLink" maxlength="300" placeholder="https://wa.me/91XXXXXXXXXX or mailto:you@example.com"></label>
+        <p class="error" id="contactError" role="alert" hidden></p>
+        <div class="dialog-actions"><button class="btn primary" type="submit">Save contact</button></div>
+      </form>
+    </details>
     <nav class="tabs" role="tablist" aria-label="Moderation queues">
       <button role="tab" class="tab" data-tab="pending">Pending <b data-count="pending">0</b></button>
       <button role="tab" class="tab" data-tab="approved">Approved <b data-count="approved">0</b></button>
       <button role="tab" class="tab" data-tab="reported">Reported <b data-count="reported">0</b></button>
       <button role="tab" class="tab" data-tab="rejected">Rejected <b data-count="rejected">0</b></button>
       <label class="auto-filter" id="autoFilterWrap" hidden><input type="checkbox" id="autoOnly"> Auto-approved only</label>
+      <select id="sort" aria-label="Sort"><option value="">Newest first</option><option value="views">Most views</option><option value="joins">Most joins</option></select>
       <input id="q" type="search" placeholder="Search name, description or link…" aria-label="Search">
     </nav>
     <section id="list" class="list" aria-live="polite"></section>
@@ -54,6 +65,20 @@
       <label>Description (optional)<textarea name="desc" rows="3" maxlength="300"></textarea></label>
       <p class="error" id="editError" role="alert" hidden></p>
       <div class="dialog-actions"><button class="btn ghost" value="cancel" type="button" id="editCancel">Cancel</button><button class="btn primary" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+  <dialog id="featDialog">
+    <form id="featForm" method="dialog" novalidate>
+      <h2>⭐ Feature “<span id="featName"></span>”</h2>
+      <p class="muted small">Featured groups are pinned at the top of the site (max 6 shown, most recently featured first) and turn off automatically when the end date passes.</p>
+      <fieldset class="feat-opts">
+        <label><input type="radio" name="len" value="7" checked> 7 days</label>
+        <label><input type="radio" name="len" value="30"> 30 days</label>
+        <label><input type="radio" name="len" value="date"> Until <input type="date" name="until" aria-label="End date"></label>
+        <label><input type="radio" name="len" value="none"> No end date</label>
+      </fieldset>
+      <p class="error" id="featError" role="alert" hidden></p>
+      <div class="dialog-actions"><button class="btn ghost" type="button" id="featCancel">Cancel</button><button class="btn primary" type="submit">★ Feature</button></div>
     </form>
   </dialog>
   <div class="toast" id="toast" role="status" hidden></div>
