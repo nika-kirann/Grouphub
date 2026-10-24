@@ -158,7 +158,6 @@
     if (!el) { if (e.target.matches('[data-overlay]')) closeOverlays(); return; }
     const a = el.dataset.action;
     if (a === 'open-add') { e.preventDefault(); updateLinkHint(); openOverlay('overlay', $('groupLink')); }
-    else if (a === 'open-featured') { e.preventDefault(); openOverlay('featuredOverlay', $('featuredOverlay').querySelector('.modal-close')); }
     else if (a === 'close-modal') closeOverlays();
     else if (a === 'platform') { currentPlatform = el.dataset.plat; $('tab-wa').className = 'tab' + (currentPlatform === 'wa' ? ' active-wa' : ''); $('tab-tg').className = 'tab' + (currentPlatform === 'tg' ? ' active-tg' : ''); $('tab-wa').setAttribute('aria-pressed', currentPlatform === 'wa'); $('tab-tg').setAttribute('aria-pressed', currentPlatform === 'tg'); renderGrid(true); }
     else if (a === 'chip') { if (el.dataset.cat === ADULT && !isAdultOk()) { pendingAdultSource = 'chip'; openOverlay('ageOverlay'); return; } setCategory(el.dataset.cat, true); }
@@ -187,8 +186,5 @@
   api('/api/meta').then((m) => { $('reportReason').insertAdjacentHTML('beforeend', m.reasons.map((r) => `<option>${esc(r)}</option>`).join('')); }).catch(() => {});
   // ?q=term (used by the WebSite SearchAction in the page's structured data) pre-fills the search box.
   try { const q0 = new URLSearchParams(location.search).get('q'); if (q0) $('searchInput').value = q0.slice(0, 100); } catch (e) { /* old browser */ }
-  load().then(() => {
-    if (location.hash === '#add') { updateLinkHint(); openOverlay('overlay', $('groupLink')); }
-    else if (location.hash === '#featured') openOverlay('featuredOverlay', $('featuredOverlay').querySelector('.modal-close'));
-  });
+  load().then(() => { if (location.hash === '#add') { updateLinkHint(); openOverlay('overlay', $('groupLink')); } });
 })();

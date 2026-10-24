@@ -30,21 +30,6 @@
       ? `<img class="avatar-img" src="${esc(g.img)}" alt="" width="48" height="48" loading="lazy" decoding="async">` : '';
     return `<div class="card-icon avatar ${isWa ? 'wa' : 'tg'}">${pic || letterAvatar(g)}<span class="avatar-plat">${isWa ? ICON.wa : ICON.tg}</span></div>`;
   }
-  // 1234 -> "1.2k", 15300 -> "15k", 2500000 -> "2.5M"
-  function compact(n) {
-    n = Math.max(0, Math.floor(Number(n) || 0));
-    const f = (v, u) => (v >= 10 ? Math.floor(v) : Math.floor(v * 10) / 10).toString().replace(/\.0$/, '') + u;
-    if (n < 1000) return String(n);
-    if (n < 1e6) return f(n / 1e3, 'k');
-    return f(n / 1e6, 'M');
-  }
-  // "👁 120 views · 👥 45 joined"; a zero count is hidden (so new groups don't look empty).
-  function statsHTML(g, cls) {
-    const v = Number(g.views) || 0, j = Number(g.joins) || 0, parts = [];
-    if (v > 0) parts.push(`<span title="${v.toLocaleString('en-US')} ${v === 1 ? 'view' : 'views'}">👁 ${compact(v)} ${v === 1 ? 'view' : 'views'}</span>`);
-    if (j > 0) parts.push(`<span title="${j.toLocaleString('en-US')} joined">👥 ${compact(j)} joined</span>`);
-    return parts.length ? `<div class="${cls || 'card-stats'}">${parts.join('<span aria-hidden="true"> · </span>')}</div>` : '';
-  }
 function cardHTML(g, idx) {
   const isWa = g.plat === 'wa';
   return `<div class="card${g.featured ? ' featured' : ''}" style="animation-delay:${(idx % PAGE_SIZE) * 0.04}s">
@@ -53,7 +38,7 @@ function cardHTML(g, idx) {
     <div class="card-info">
       <a class="card-name" href="${esc(groupPath(g))}" title="${esc(g.name)}">${esc(g.name)}</a>
       <div class="card-meta">
-        ${g.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+        ${g.featured ? '<span class="badge badge-featured">★ Featured</span>' : ''}
         <span class="badge badge-${isWa ? 'wa' : 'tg'}">${isWa ? 'WhatsApp' : 'Telegram'}</span>
         <span class="badge badge-cat">${esc(g.cat)}</span>
         <span class="badge badge-country">🌍 ${esc(g.country)}</span>
@@ -63,7 +48,6 @@ function cardHTML(g, idx) {
     </div>
   </div>
   ${g.desc ? `<div class="card-desc">${esc(g.desc)}</div>` : ''}
-  ${statsHTML(g)}
   <div class="card-footer">
     <div class="card-members">${g.members ? Number(g.members).toLocaleString('en-US') + ' members' : esc(g.lang)}</div>
     <div class="card-actions">
@@ -74,5 +58,5 @@ function cardHTML(g, idx) {
 </div>`;
 }
 
-  return { PAGE_SIZE, ADULT, ICON, esc, slugify, groupPath, letterAvatar, avatarHTML, cardHTML, compact, statsHTML };
+  return { PAGE_SIZE, ADULT, ICON, esc, slugify, groupPath, letterAvatar, avatarHTML, cardHTML };
 });
