@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const JsonStore = require('./lib/store');
 const { sampleGroups } = require('./lib/seed');
 const V = require('./lib/validate');
+const Monetag = require('./lib/monetag');
 
 // ---------- config ----------
 const PORT = parseInt(process.env.PORT, 10) || 8000;
@@ -170,14 +171,15 @@ if (process.env.TRUST_PROXY) app.set('trust proxy', trustProxySetting(process.en
 
 // Strict CSP everywhere (admin, API). Public pages get a relaxed CSP so the Monetag tag can load.
 const STRICT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
-// Monetag OnClick tag (public pages only, loaded by /monetag.js). The tag script itself comes from one fixed host;
-// it then calls ad servers whose domains Monetag rotates (seen: 255md.com, my.rtmark.net), so connect-src allows any
+// Monetag OnClick tag (public pages only): an inline snippet in <head>, allowed by its sha256 hash (lib/monetag.js),
+// which loads the tag from one fixed host. /monetag.js (the old external loader) is still served for cached pages.
+// The tag then calls ad servers whose domains Monetag rotates (seen: 255md.com, my.rtmark.net), so connect-src allows any
 // https: origin on public pages. img-src already allows https:, so this adds no new exfiltration path. The tag compiles
-// WebAssembly, which needs 'wasm-unsafe-eval' (WebAssembly only; JS eval and inline scripts stay blocked).
+// WebAssembly, which needs 'wasm-unsafe-eval' (WebAssembly only; JS eval and other inline scripts stay blocked).
 const MONETAG_SCRIPT = 'https://al5sm.com';
 const PUBLIC_CSP = [
   "default-src 'self'",
-  `script-src 'self' 'wasm-unsafe-eval' ${MONETAG_SCRIPT}`,
+  `script-src 'self' ${Monetag.HASH} 'wasm-unsafe-eval' ${MONETAG_SCRIPT}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   'font-src https://fonts.gstatic.com',
   "img-src 'self' https: data:",
